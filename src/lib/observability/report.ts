@@ -37,7 +37,7 @@ export async function reportError(error: unknown, context: Record<string, unknow
       method: "POST",
       headers: {
         "Content-Type": "application/x-sentry-envelope",
-        "X-Sentry-Auth": `Sentry sentry_version=7, sentry_key=${key}, sentry_client=flowsentinel/0.1`,
+        "X-Sentry-Auth": `Sentry sentry_version=7, sentry_key=${key}, sentry_client=loopmend/0.1`,
       },
       body,
       signal: AbortSignal.timeout(2000),

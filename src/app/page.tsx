@@ -20,7 +20,7 @@ export default function Home() {
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Logo /> FlowSentinel
+          <Logo /> Loopmend
         </Link>
         <nav className="flex items-center gap-2">
           <ThemeToggle />
@@ -36,7 +36,7 @@ export default function Home() {
             Detect, investigate and safely recover failing automations.
           </h1>
           <p className="mt-5 max-w-2xl text-base text-muted-foreground">
-            FlowSentinel ingests failures from n8n, correlates them with execution history, produces an evidence-backed
+            Loopmend ingests failures from n8n, correlates them with execution history, produces an evidence-backed
             diagnosis, and runs only allowlisted, approved, idempotent recovery actions — with a complete audit trail.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -67,7 +67,7 @@ export default function Home() {
         </section>
       </main>
       <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-        FlowSentinel · portfolio project · demo data is clearly labeled
+        Loopmend · portfolio project · demo data is clearly labeled
       </footer>
     </div>
   );
