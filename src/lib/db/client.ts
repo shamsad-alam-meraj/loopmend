@@ -56,6 +56,8 @@ async function init(): Promise<Db> {
     const dir = process.env.PGLITE_DATA_DIR?.trim() || path.join(process.cwd(), ".data", "pglite");
     logger.info("using embedded PGlite database", { dir });
     db = await connectPglite(dir);
+    // Publish the handle before seeding so seed hooks can use services that call getDb().
+    holder.db = db;
     if (process.env.NODE_ENV !== "test") {
       await import("./seed-hooks");
       const { seedDemoIfEmpty } = await import("./seed");
