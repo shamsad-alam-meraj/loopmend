@@ -10,6 +10,7 @@ import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { getSidebarBadges } from "@/components/dashboard/badges";
 import { LiveUpdates } from "@/components/dashboard/live-updates";
+import { CommandPalette, PaletteTrigger } from "@/components/palette/command-palette";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/">) {
   const auth = await requirePageAuth();
@@ -32,6 +33,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
           </div>
           <OrgSwitcher auth={auth} />
         </div>
+        <PaletteTrigger />
         <SidebarNav badges={badges} />
         <div className="mt-auto flex items-center gap-2 border-t pt-3">
           <div className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{initials}</div>
@@ -56,6 +58,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
         </header>
         <div className="border-b px-4 py-2 md:hidden"><MobileNav /></div>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
+        <CommandPalette orgSlug={auth.org.slug} />
       </div>
     </div>
   );

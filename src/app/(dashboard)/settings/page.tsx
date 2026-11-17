@@ -13,6 +13,10 @@ import { Select } from "@/components/ui/input";
 import { AddMemberForm } from "@/components/dashboard/add-member-form";
 import { formatRelative } from "@/lib/utils/format";
 import { IntegrationsCard } from "@/components/integrations/integrations-card";
+import { toggleStatusPageAction } from "@/actions/settings.actions";
+import { getDb } from "@/lib/db/client";
+import { organizations } from "@schema";
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import type { Role } from "@schema";
 
@@ -26,6 +30,8 @@ export default async function SettingsPage() {
   const members = await listMembers(ctx);
   const canManage = can(auth.role, "member:manage");
   const roles = assignableRoles(auth.role);
+  const [orgRow] = await (await getDb()).select({ enabled: organizations.statusPageEnabled }).from(organizations).where(eq(organizations.id, auth.org.id));
+  const statusEnabled = orgRow?.enabled ?? false;
   const h = await headers();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
 
@@ -38,6 +44,25 @@ export default async function SettingsPage() {
       />
       <div className="space-y-6">
         <IntegrationsCard auth={auth} appUrl={appUrl} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Public status page</CardTitle>
+            <CardDescription>Opt-in page showing aggregate workflow health only. No incident details, errors or members are exposed.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            {statusEnabled ? (
+              <Link href={`/status/${auth.org.slug}`} className="text-sm text-primary hover:underline" target="_blank">{appUrl}/status/{auth.org.slug}</Link>
+            ) : (
+              <span className="text-sm text-muted-foreground">Disabled</span>
+            )}
+            {can(auth.role, "org:settings") && (
+              <form action={toggleStatusPageAction}>
+                <input type="hidden" name="enabled" value={statusEnabled ? "false" : "true"} />
+                <Button size="sm" variant={statusEnabled ? "outline" : "default"} type="submit">{statusEnabled ? "Disable" : "Enable"} status page</Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Members</CardTitle>

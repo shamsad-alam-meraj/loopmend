@@ -101,6 +101,8 @@ export const organizations = pgTable("organizations", {
   /** Monotonic counter for human-readable incident numbers (INC-0042). */
   incidentSeq: integer("incident_seq").notNull().default(0),
   isDemo: boolean("is_demo").notNull().default(false),
+  /** Opt-in public status page at /status/<slug> (aggregate health only). */
+  statusPageEnabled: boolean("status_page_enabled").notNull().default(false),
   createdAt: createdAt(),
 });
 

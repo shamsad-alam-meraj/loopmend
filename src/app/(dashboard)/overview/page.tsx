@@ -50,7 +50,7 @@ export default async function OverviewPage() {
           </Card>
           <OverviewExtras auth={auth} />
           {can(auth.role, "demo:simulate") && (
-            <Card>
+            <Card id="simulator" className="scroll-mt-6">
               <CardHeader>
                 <CardTitle>Failure simulator</CardTitle>
                 <CardDescription>Sends a signed n8n Error Trigger payload through the public webhook — the same path real failures take.</CardDescription>

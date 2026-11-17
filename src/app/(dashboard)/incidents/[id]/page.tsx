@@ -12,6 +12,7 @@ import { CategoryBadge, incidentRef, SeverityBadge, StatusBadge } from "@/compon
 import { IncidentActions } from "@/components/incidents/incident-actions";
 import { Timeline } from "@/components/incidents/timeline";
 import { IncidentExtraSections } from "@/components/incidents/extra-sections";
+import { ImpactCard, RunbookCard } from "@/components/incidents/insight-cards";
 import { formatDateTime, formatDuration, formatRelative, titleCase } from "@/lib/utils/format";
 
 export const metadata: Metadata = { title: "Incident" };
@@ -72,6 +73,7 @@ export default async function IncidentPage({ params }: PageProps<"/incidents/[id
         </div>
 
         <div className="space-y-6">
+          <ImpactCard auth={auth} incidentId={i.id} />
           <Card>
             <CardHeader><CardTitle>Failure</CardTitle></CardHeader>
             <CardContent>
@@ -95,6 +97,7 @@ export default async function IncidentPage({ params }: PageProps<"/incidents/[id
               </dl>
             </CardContent>
           </Card>
+          <RunbookCard category={i.category} />
           {e && (
             <Card>
               <CardHeader><CardTitle>Latest execution</CardTitle></CardHeader>
