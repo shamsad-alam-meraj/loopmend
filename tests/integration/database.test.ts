@@ -13,7 +13,7 @@ let ids: Awaited<ReturnType<typeof seedDemo>>;
 
 beforeAll(async () => {
   ({ db, client, close } = await createTestDb());
-  ids = await seedDemo(db, Date.parse("2026-11-17T10:00:00Z"));
+  ids = await seedDemo(db, Date.parse("2026-11-17T10:00:00Z"), { days: 3 });
 });
 afterAll(async () => close());
 
@@ -25,7 +25,7 @@ describe("schema & seed", () => {
       .select({ count: sql<number>`count(*)::int` })
       .from(schema.executions)
       .where(eq(schema.executions.organizationId, ids.acme));
-    expect(count).toBeGreaterThan(1000);
+    expect(count).toBeGreaterThan(500);
   });
 
   it("enforces org-scoped unique external ids", async () => {

@@ -23,7 +23,7 @@ const user = (email: string) => ids.userIds.get(email)!;
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
-  ids = await seedDemo(db);
+  ids = await seedDemo(db, Date.now(), { days: 3 });
 });
 afterAll(async () => close());
 

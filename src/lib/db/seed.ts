@@ -50,7 +50,7 @@ function buildExecutions(orgId: string, workflowId: string, wf: DemoWorkflow, no
   return rows;
 }
 
-async function seedOrg(db: Db, key: "acme" | "globex", workflows: DemoWorkflow[], userIds: Map<string, string>, now: number) {
+async function seedOrg(db: Db, key: "acme" | "globex", workflows: DemoWorkflow[], userIds: Map<string, string>, now: number, days: number) {
   const [org] = await db
     .insert(schema.organizations)
     .values({ name: DEMO_ORGS[key].name, slug: DEMO_ORGS[key].slug, isDemo: true })
@@ -75,7 +75,7 @@ async function seedOrg(db: Db, key: "acme" | "globex", workflows: DemoWorkflow[]
       })
       .returning();
     await db.insert(schema.workflowVersions).values({ organizationId: org.id, workflowId: row.id, version: 1, definitionHash: `demo-${wf.externalId}-v1` });
-    const execs = buildExecutions(org.id, row.id, wf, now, rand, 14);
+    const execs = buildExecutions(org.id, row.id, wf, now, rand, days);
     for (let i = 0; i < execs.length; i += 500) {
       await db.insert(schema.executions).values(execs.slice(i, i + 500));
     }
@@ -91,7 +91,8 @@ export async function seedDemoIfEmpty(db: Db): Promise<boolean> {
   return true;
 }
 
-export async function seedDemo(db: Db, now = Date.now()) {
+export async function seedDemo(db: Db, now = Date.now(), opts: { days?: number } = {}) {
+  const days = opts.days ?? 14;
   const started = Date.now();
   const passwordHash = await hashPassword(DEMO_PASSWORD);
   const userIds = new Map<string, string>();
@@ -101,8 +102,8 @@ export async function seedDemo(db: Db, now = Date.now()) {
       existing ?? (await db.insert(schema.profiles).values({ email: u.email, fullName: u.fullName, passwordHash }).returning())[0];
     userIds.set(u.email, row.id);
   }
-  const acme = await seedOrg(db, "acme", DEMO_WORKFLOWS, userIds, now);
-  const globex = await seedOrg(db, "globex", GLOBEX_WORKFLOWS, userIds, now);
+  const acme = await seedOrg(db, "acme", DEMO_WORKFLOWS, userIds, now, days);
+  const globex = await seedOrg(db, "globex", GLOBEX_WORKFLOWS, userIds, now, days);
   for (const hook of hooks) await hook(db, { orgIds: { acme, globex } });
   logger.info("demo data seeded", { ms: Date.now() - started });
   return { acme, globex, userIds };

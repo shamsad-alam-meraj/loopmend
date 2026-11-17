@@ -13,7 +13,7 @@ const ctx = (orgId: string, userId: string, role: ServiceContext["role"]): Servi
 beforeAll(async () => {
   const t = await createTestDb();
   close = t.close;
-  ids = await seedDemo(t.db);
+  ids = await seedDemo(t.db, Date.now(), { days: 3 });
 });
 afterAll(async () => close());
 

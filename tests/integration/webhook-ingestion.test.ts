@@ -18,7 +18,7 @@ let orgId: string;
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
-  const ids = await seedDemo(db);
+  const ids = await seedDemo(db, Date.now(), { days: 3 });
   orgId = ids.acme;
   const created = await createIntegration(
     { organizationId: orgId, actor: { type: "user", id: ids.userIds.get("admin@demo.loopmend.dev")! }, role: "admin" },
