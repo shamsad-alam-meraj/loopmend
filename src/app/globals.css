@@ -102,3 +102,39 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-in, .animate-ping { animation: none !important; }
 }
+
+/* ---------------------------------------------------------------- landing motion */
+@keyframes lm-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes lm-gradient { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+@keyframes lm-dash { to { stroke-dashoffset: -24; } }
+@keyframes lm-pulse-ring { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes lm-blink { 50% { opacity: 0; } }
+
+.lm-gradient-text {
+  /* background-image (not the shorthand): the shorthand would reset background-clip */
+  background-image: linear-gradient(90deg, var(--primary), oklch(0.7 0.16 200), oklch(0.72 0.17 155), var(--primary));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lm-gradient 8s linear infinite;
+}
+.lm-float { animation: lm-float 6s ease-in-out infinite; }
+.lm-flow { stroke-dasharray: 6 6; animation: lm-dash 1.2s linear infinite; }
+.lm-caret::after { content: "▍"; margin-left: 2px; animation: lm-blink 1s step-end infinite; }
+.lm-ring { animation: lm-pulse-ring 2.4s ease-out infinite; }
+.lm-grid-bg {
+  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 30%, transparent 75%);
+}
+.lm-reveal { opacity: 0; transform: translateY(18px); transition: opacity 700ms ease, transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.lm-reveal.is-visible { opacity: 1; transform: none; }
+.lm-card-hover { transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+.lm-card-hover:hover { transform: translateY(-3px); border-color: color-mix(in oklch, var(--primary) 45%, var(--border)); box-shadow: 0 12px 30px -18px color-mix(in oklch, var(--primary) 60%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-gradient-text, .lm-float, .lm-flow, .lm-caret::after, .lm-ring { animation: none !important; }
+  .lm-reveal { opacity: 1; transform: none; transition: none; }
+}
+@keyframes lm-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
