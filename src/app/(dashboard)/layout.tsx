@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { getSidebarBadges } from "@/components/dashboard/badges";
+import { LiveUpdates } from "@/components/dashboard/live-updates";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/">) {
   const auth = await requirePageAuth();
@@ -24,7 +25,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
         <div className="mb-4 rounded-md border bg-card p-2.5">
           <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>Organization</span>
-            {auth.org.isDemo && <Badge tone="warning">Demo data</Badge>}
+            <span className="flex items-center gap-2">
+              <LiveUpdates orgId={auth.org.id} />
+              {auth.org.isDemo && <Badge tone="warning">Demo</Badge>}
+            </span>
           </div>
           <OrgSwitcher auth={auth} />
         </div>
