@@ -17,7 +17,9 @@ export default defineConfig({
     environment: "node",
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     testTimeout: 30_000,
-    hookTimeout: 60_000,
+    hookTimeout: 180_000,
     pool: "forks",
+    // Each integration file boots its own in-memory Postgres; cap parallelism to keep CI runners stable.
+    maxWorkers: 3,
   },
 });
