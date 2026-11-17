@@ -8,19 +8,19 @@ import { formatRelative, titleCase } from "@/lib/utils/format";
 import { RecoverySection } from "@/components/recoveries/recovery-section";
 
 /** Investigation and recovery sections of the incident page. */
-export async function IncidentExtraSections({ auth, incidentId }: { auth: AuthContext; incidentId: string }) {
+export async function IncidentExtraSections({ auth, incidentId, incidentStatus }: { auth: AuthContext; incidentId: string; incidentStatus: string }) {
   const rows = await listInvestigations(toServiceContext(auth), { incidentId, limit: 10 });
   const [latest, ...older] = rows;
   const canInvestigate = can(auth.role, "incident:investigate");
   return (
     <>
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
+        <CardHeader className="flex-row flex-wrap items-start justify-between gap-4">
           <div>
             <CardTitle>Investigation</CardTitle>
             <CardDescription>Sanitized execution metadata and related incidents are analyzed; output is schema-validated.</CardDescription>
           </div>
-          {canInvestigate && <InvestigateButton incidentId={incidentId} label={latest ? "Re-investigate" : "Run investigation"} />}
+          {canInvestigate && !["resolved", "dismissed"].includes(incidentStatus) && <InvestigateButton incidentId={incidentId} label={latest ? "Re-investigate" : "Run investigation"} />}
         </CardHeader>
         <CardContent>
           {latest ? <InvestigationCard inv={latest.investigation} /> : <p className="text-xs text-muted-foreground">Not investigated yet.</p>}
@@ -38,7 +38,7 @@ export async function IncidentExtraSections({ auth, incidentId }: { auth: AuthCo
           )}
         </CardContent>
       </Card>
-      <RecoverySection auth={auth} incidentId={incidentId} />
+      <RecoverySection auth={auth} incidentId={incidentId} incidentClosed={["resolved", "dismissed"].includes(incidentStatus)} />
     </>
   );
 }

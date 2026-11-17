@@ -1,5 +1,6 @@
 import { ok, route } from "@/lib/http/api";
 import { apiContext } from "@/lib/http/auth-context";
+import "@/services/hooks";
 import { investigateIncident } from "@/services/investigation.service";
 
 export const dynamic = "force-dynamic";

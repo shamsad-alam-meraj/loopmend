@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requirePageAuth, toServiceContext } from "@/lib/auth";
+import "@/services/hooks";
 import { investigateIncident } from "@/services/investigation.service";
 import { isAppError } from "@/lib/utils/errors";
 import type { ActionResult } from "./incident.actions";

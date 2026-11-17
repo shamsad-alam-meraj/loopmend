@@ -64,7 +64,7 @@ export default async function IncidentPage({ params }: PageProps<"/incidents/[id
               </CardContent>
             </Card>
           )}
-          <IncidentExtraSections auth={auth} incidentId={i.id} />
+          <IncidentExtraSections auth={auth} incidentId={i.id} incidentStatus={i.status} />
           <Card>
             <CardHeader><CardTitle>Timeline</CardTitle></CardHeader>
             <CardContent><Timeline events={data.events} /></CardContent>
