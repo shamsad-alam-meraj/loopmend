@@ -194,7 +194,8 @@ Integration tests run against an in-memory Postgres (PGlite) with the real migra
 1. **Supabase**: create a project. In *Auth → URL configuration*, add `https://<your-domain>/auth/callback`. Copy the URL and anon key. For migrations, use the **session pooler / direct** connection string (port 5432) as `DATABASE_URL`; the app runtime can use the transaction pooler (6543).
 2. **Vercel**: import the repo, then set environment variables per environment (all from the table above). Generate secrets with `openssl rand -hex 32` and `openssl rand -base64 32`.
 3. **GitHub**: add repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and an environment **production** (with required reviewers if you want a manual gate) containing `DATABASE_URL`.
-4. Push to `main`. The pipeline migrates, deploys and smoke-tests (`infrastructure/scripts/smoke-test.sh`).
+4. Add the repository **variable** `DEPLOY_ENABLED=true` (Settings → Secrets and variables → Actions → Variables). Until then, pushes run CI only.
+5. Push to `main`. The pipeline migrates, deploys and smoke-tests (`infrastructure/scripts/smoke-test.sh`).
 
 **Migrations**: `npm run db:generate` after editing `drizzle/schema.ts`, review the SQL, commit. CI fails if the schema changes without a migration. Prefer the pipeline's migrate step; alternatively set `RUN_MIGRATIONS_ON_BUILD=true` to migrate inside `vercel-build` for production builds. Supabase-specific pieces (RLS helpers, `auth.uid()`, Realtime publication) are written to be idempotent and no-op on plain Postgres.
 
