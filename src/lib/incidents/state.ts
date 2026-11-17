@@ -2,9 +2,9 @@ import type { IncidentStatus } from "@schema";
 
 /** Allowed incident status transitions. System flows and humans both go through this. */
 const TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  open: ["investigating", "awaiting_approval", "recovering", "resolved", "dismissed"],
-  investigating: ["open", "awaiting_approval", "recovering", "resolved", "dismissed"],
-  awaiting_approval: ["open", "investigating", "recovering", "resolved", "dismissed"],
+  open: ["investigating", "awaiting_approval", "recovering", "resolved", "dismissed", "dead_letter"],
+  investigating: ["open", "awaiting_approval", "recovering", "resolved", "dismissed", "dead_letter"],
+  awaiting_approval: ["open", "investigating", "recovering", "resolved", "dismissed", "dead_letter"],
   recovering: ["open", "resolved", "dead_letter", "awaiting_approval"],
   resolved: ["open"],
   dismissed: ["open"],
