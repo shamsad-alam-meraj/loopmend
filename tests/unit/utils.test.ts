@@ -8,6 +8,8 @@ describe("format helpers", () => {
     expect(formatDuration(450)).toBe("450 ms");
     expect(formatDuration(3400)).toBe("3.4 s");
     expect(formatDuration(125_000)).toBe("2m 5s");
+    expect(formatDuration(93_005_000)).toBe("1d 2h");
+    expect(formatDuration(5_400_000)).toBe("1h 30m");
     expect(formatDuration(null)).toBe("—");
   });
   it("formats percentages and relative times", () => {
