@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run vercel-build",
+  "crons": [
+    { "path": "/api/v1/cron/recoveries", "schedule": "0 3 * * *" },
+    { "path": "/api/v1/cron/reliability-report", "schedule": "0 6 * * *" }
+  ]
+}
