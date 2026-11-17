@@ -105,3 +105,8 @@ export function route<C = unknown>(
     }
   };
 }
+
+/** Query string → object for zod parsing. */
+export function searchParamsObject(req: NextRequest): Record<string, string> {
+  return Object.fromEntries(req.nextUrl.searchParams.entries());
+}
