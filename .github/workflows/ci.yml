@@ -1,0 +1,113 @@
+name: CI
+
+# Runs on feature-branch pushes; pull requests and main run it via deploy.yml (workflow_call).
+on:
+  push:
+    branches-ignore: [main]
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22
+  NEXT_TELEMETRY_DISABLED: 1
+  # Test-only secrets (never real credentials).
+  SESSION_SECRET: ci-session-secret-0123456789abcdef0123456789
+  N8N_WEBHOOK_SECRET: ci-webhook-secret-0123456789abcdef012345678
+  CRON_SECRET: ci-cron-secret-0123456789abcdef0123456789abcd
+
+jobs:
+  quality:
+    name: Typecheck · lint · unit · integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: TypeScript type check
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Vitest unit tests
+        run: npm run test:unit
+      - name: Integration tests (embedded Postgres)
+        run: npm run test:integration
+
+  migrations:
+    name: Migrations on Postgres 16
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: loopmend
+          POSTGRES_PASSWORD: loopmend
+          POSTGRES_DB: loopmend
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U loopmend" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://loopmend:loopmend@localhost:5432/loopmend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Schema and migrations are in sync
+        run: |
+          npx drizzle-kit check
+          npx drizzle-kit generate --name ci_drift_check
+          if [ -n "$(git status --porcelain drizzle/migrations)" ]; then
+            echo "::error::drizzle/schema.ts has changes without a committed migration. Run npm run db:generate."
+            git status --porcelain drizzle/migrations
+            exit 1
+          fi
+      - name: Apply migrations
+        run: npm run db:migrate
+      - name: Re-apply is a no-op (idempotent)
+        run: npm run db:migrate
+      - name: Seed demo data against real Postgres
+        run: npm run db:seed
+        env:
+          ENABLE_DEMO_MODE: "true"
+
+  build-e2e:
+    name: Build · Playwright E2E
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 25
+    env:
+      PGLITE_DATA_DIR: ${{ runner.temp }}/pglite-e2e
+      ENABLE_DEMO_MODE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

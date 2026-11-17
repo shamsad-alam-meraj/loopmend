@@ -17,7 +17,9 @@
     "db:migrate": "tsx --conditions=react-server infrastructure/scripts/db-migrate.ts",
     "db:seed": "tsx --conditions=react-server infrastructure/scripts/db-seed.ts",
     "db:studio": "drizzle-kit studio",
-    "db:reset:local": "rm -rf .data/pglite"
+    "db:reset:local": "rm -rf .data/pglite",
+    "vercel-build": "tsx infrastructure/scripts/vercel-build.ts",
+    "smoke": "bash infrastructure/scripts/smoke-test.sh"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
