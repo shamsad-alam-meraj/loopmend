@@ -12,6 +12,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { AddMemberForm } from "@/components/dashboard/add-member-form";
 import { formatRelative } from "@/lib/utils/format";
+import { IntegrationsCard } from "@/components/integrations/integrations-card";
+import { headers } from "next/headers";
 import type { Role } from "@schema";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -24,6 +26,8 @@ export default async function SettingsPage() {
   const members = await listMembers(ctx);
   const canManage = can(auth.role, "member:manage");
   const roles = assignableRoles(auth.role);
+  const h = await headers();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
 
   return (
     <>
@@ -33,6 +37,7 @@ export default async function SettingsPage() {
         actions={<Link href="/onboarding" className={buttonVariants({ variant: "outline", size: "sm" })}>New organization</Link>}
       />
       <div className="space-y-6">
+        <IntegrationsCard auth={auth} appUrl={appUrl} />
         <Card>
           <CardHeader>
             <CardTitle>Members</CardTitle>
