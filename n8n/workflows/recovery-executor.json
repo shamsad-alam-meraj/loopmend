@@ -1,0 +1,239 @@
+{
+  "name": "Loopmend \u00b7 recovery-executor",
+  "nodes": [
+    {
+      "id": "95b40f21-ee09-5ec1-ae4a-f13cd61aeaee",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loopmend-recovery",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "238b4ac8-a0e1-538b-bfb4-4fc5bec8fae1"
+    },
+    {
+      "id": "e2ea3666-43d1-5e4a-972d-cf1ecba6bcac",
+      "name": "Validate & Authorize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Validate Signed Request \u2192 Verify Authorization \u2192 Check Idempotency Key \u2192\n// Check Deadline. Rejects anything that is not a fresh, correctly signed\n// request from Loopmend for an allowlisted action.\nconst crypto = require('crypto');\nconst item = $input.first().json;\nconst h = item.headers || {};\nconst req = item.body || {};\nconst raw = JSON.stringify(req); // Loopmend sends compact JSON.stringify output\nconst ts = String(h['x-loopmend-timestamp'] || '');\nconst nonce = String(h['x-loopmend-nonce'] || '');\nconst provided = String(h['x-loopmend-signature'] || '').replace(/^v1=/, '');\nconst expected = crypto.createHmac('sha256', $env.LOOPMEND_WEBHOOK_SECRET).update(`${ts}.${nonce}.${raw}`).digest('hex');\nconst reject = (status, message) => [{ json: { decision: 'reject', status, message } }];\n\nif (!ts || !nonce || provided.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))) return reject(401, 'invalid signature');\nif (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return reject(401, 'stale request');\nif (h['x-loopmend-integration'] !== $env.LOOPMEND_INTEGRATION_ID) return reject(401, 'unknown integration');\nif (req.type !== 'recovery.execute') return reject(400, 'unsupported request');\nconst ALLOWED = ['retry_execution', 'exponential_backoff', 'refresh_credentials_then_retry', 'pause_workflow', 'notify_owner'];\nif (!ALLOWED.includes(req.strategy)) return reject(422, `strategy ${req.strategy} is not allowlisted`);\nif (new Date(req.deadline).getTime() < Date.now()) return reject(409, 'deadline exceeded');\n\n// Idempotency: remember processed keys (workflow static data persists for active workflows).\nconst store = $getWorkflowStaticData('global');\nstore.processed = store.processed || {};\nconst prior = store.processed[req.idempotencyKey];\nif (prior) return [{ json: { decision: 'duplicate', status: 200, result: prior } }];\nconst seenNonces = (store.nonces = store.nonces || {});\nif (seenNonces[nonce]) return reject(409, 'replayed nonce');\nseenNonces[nonce] = Date.now();\nfor (const [k, t] of Object.entries(seenNonces)) if (Date.now() - t > 3600_000) delete seenNonces[k];\n\nconst action = ['retry_execution', 'exponential_backoff', 'refresh_credentials_then_retry'].includes(req.strategy) ? 'retry' : req.strategy === 'pause_workflow' ? 'pause' : 'notify';\nreturn [{ json: { decision: 'execute', action, req } }];"
+      }
+    },
+    {
+      "id": "2523f9f6-8f91-5dff-846b-923c2773d0ef",
+      "name": "Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "execute",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "execute"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "duplicate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "duplicate"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "reject"
+        }
+      }
+    },
+    {
+      "id": "bfc89b38-30d0-5bcd-926b-920ac8ec8caa",
+      "name": "Execute Approved Recovery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "// Execute Approved Recovery through the n8n public API (allowlisted actions only).\nconst j = $input.first().json;\nconst { req, action } = j;\nconst base = 'http://127.0.0.1:5678/api/v1';\nconst headers = { 'X-N8N-API-KEY': $env.N8N_PUBLIC_API_KEY, 'content-type': 'application/json' };\nconst started = Date.now();\nasync function call(method, path, body) {\n  return this.helpers.httpRequest({ method, url: base + path, headers, body, json: true, timeout: 20000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n}\nlet result;\ntry {\n  if (action === 'retry') {\n    if (!req.originalExecutionId) throw new Error('no original execution to retry');\n    // Retries the failed execution (n8n re-runs from the failed node with original data).\n    const r = await call.call(this, 'POST', `/executions/${encodeURIComponent(req.originalExecutionId)}/retry`, { loadWorkflow: true });\n    const ok = r.statusCode < 300 && r.body && r.body.status !== 'error';\n    result = ok\n      ? { status: 'succeeded', executionId: String(r.body.id ?? ''), message: `n8n retry of ${req.originalExecutionId} finished` }\n      : { status: 'failed', retryable: r.statusCode >= 500 || r.statusCode === 429, executionId: r.body && r.body.id ? String(r.body.id) : undefined, message: `n8n retry failed (HTTP ${r.statusCode})` };\n  } else if (action === 'pause') {\n    const r = await call.call(this, 'POST', `/workflows/${encodeURIComponent(req.workflow.externalId)}/deactivate`);\n    result = r.statusCode < 300 ? { status: 'succeeded', message: `Workflow ${req.workflow.name} deactivated` } : { status: 'failed', retryable: false, message: `deactivate failed (HTTP ${r.statusCode})` };\n  } else {\n    if ($env.SLACK_WEBHOOK_URL) {\n      await this.helpers.httpRequest({ method: 'POST', url: $env.SLACK_WEBHOOK_URL, body: { text: `Loopmend: INC-${req.incident.number} on ${req.workflow.name} needs an owner fix (${req.incident.category}).` }, json: true });\n    }\n    result = { status: 'succeeded', message: $env.SLACK_WEBHOOK_URL ? 'Owner notified via Slack' : 'Notification recorded (no Slack webhook configured)' };\n  }\n} catch (e) {\n  result = { status: 'failed', retryable: false, message: String(e.message || e) };\n}\nresult.durationMs = Date.now() - started;\n$getWorkflowStaticData('global').processed[req.idempotencyKey] = result;\nreturn [{ json: { status: 200, result } }];"
+      }
+    },
+    {
+      "id": "f4f123ec-da03-5cfd-829e-473de257aa11",
+      "name": "Respond: Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        -120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.result) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    },
+    {
+      "id": "cb0a8f68-65ed-5863-8fb5-06d8863c8845",
+      "name": "Respond: Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        40
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.result) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "689ceb74-687c-5096-bbe3-11ab16809686",
+      "name": "Respond: Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'failed', retryable: false, message: $json.message }) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Authorize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Authorize": {
+      "main": [
+        [
+          {
+            "node": "Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision": {
+      "main": [
+        [
+          {
+            "node": "Execute Approved Recovery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Approved Recovery": {
+      "main": [
+        [
+          {
+            "node": "Respond: Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "loopmend"
+    },
+    {
+      "name": "recovery"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "loopmend": "Import via: n8n import:workflow --input=/workflows/<file>.json"
+  }
+}

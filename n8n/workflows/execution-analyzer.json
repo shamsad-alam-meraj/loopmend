@@ -1,0 +1,63 @@
+{
+  "name": "Loopmend \u00b7 execution-analyzer",
+  "nodes": [
+    {
+      "id": "6e1b7783-2c21-5f17-8a15-16ec52ae8928",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"executionId\": \"231\"\n}"
+      }
+    },
+    {
+      "id": "29d5d87f-7b41-5691-9860-604aba95444c",
+      "name": "Collect Execution Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Collect sanitized execution metadata (no item data) for a failed execution.\nconst { executionId } = $input.first().json;\nconst r = await this.helpers.httpRequest({\n  method: 'GET', url: `http://127.0.0.1:5678/api/v1/executions/${encodeURIComponent(executionId)}?includeData=false`,\n  headers: { 'X-N8N-API-KEY': $env.N8N_PUBLIC_API_KEY }, json: true, timeout: 10000,\n});\nconst started = r.startedAt ? new Date(r.startedAt).getTime() : null;\nconst stopped = r.stoppedAt ? new Date(r.stoppedAt).getTime() : null;\nreturn [{ json: { executionId, mode: r.mode, status: r.status, retryOf: r.retryOf ?? null, startedAt: r.startedAt, durationMs: started && stopped ? stopped - started : null } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Collect Execution Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "loopmend"
+    },
+    {
+      "name": "analysis"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "loopmend": "Import via: n8n import:workflow --input=/workflows/<file>.json"
+  }
+}

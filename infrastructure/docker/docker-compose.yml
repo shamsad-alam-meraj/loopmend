@@ -1,0 +1,89 @@
+# Self-hosted n8n for Loopmend (Oracle Cloud Always Free ARM64 or any Docker host).
+# Starting point, not a turnkey hardened deployment: add host firewalling,
+# monitoring and tested restores before exposing it publicly (see README).
+name: loopmend-n8n
+
+services:
+  postgres:
+    image: postgres:16.10-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: n8n
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+
+  n8n:
+    # Pin tested versions; upgrade deliberately after reading release notes.
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-2.47.7}
+    restart: unless-stopped
+    # Bound to localhost only — Caddy is the only public entrypoint.
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_HOST: ${N8N_HOST:?set N8N_HOST}
+      N8N_PROTOCOL: https
+      N8N_PROXY_HOPS: 1
+      WEBHOOK_URL: https://${N8N_HOST}/
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY}
+      GENERIC_TIMEZONE: UTC
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_SECURE_COOKIE: "true"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 336
+      # Loopmend workflows sign/verify requests with HMAC and read config from env.
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      LOOPMEND_URL: ${LOOPMEND_URL:?set LOOPMEND_URL}
+      LOOPMEND_INTEGRATION_ID: ${LOOPMEND_INTEGRATION_ID:?set LOOPMEND_INTEGRATION_ID}
+      LOOPMEND_WEBHOOK_SECRET: ${LOOPMEND_WEBHOOK_SECRET:?set LOOPMEND_WEBHOOK_SECRET}
+      LOOPMEND_CRON_SECRET: ${LOOPMEND_CRON_SECRET:?set LOOPMEND_CRON_SECRET}
+      N8N_PUBLIC_API_KEY: ${N8N_PUBLIC_API_KEY:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ../../n8n/workflows:/workflows:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      N8N_HOST: ${N8N_HOST}
+      EDITOR_ALLOWED_IPS: ${EDITOR_ALLOWED_IPS:-127.0.0.1/32}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [n8n]
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  postgres_data:
+  n8n_data:
+  caddy_data:
+  caddy_config:

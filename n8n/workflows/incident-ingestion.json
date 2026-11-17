@@ -1,0 +1,210 @@
+{
+  "name": "Loopmend \u00b7 incident-ingestion",
+  "nodes": [
+    {
+      "id": "60944786-7ccd-5020-8c08-c2cd72378905",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "4014829e-24b3-5c32-b736-df2b57efb39d",
+      "name": "Normalize Error Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Normalize the Error Trigger payload into Loopmend's canonical contract.\n// The eventId is derived from workflow + execution so n8n retries of this\n// workflow re-send the SAME event (Loopmend ingests it once).\nconst crypto = require('crypto');\nconst p = $input.first().json;\nconst execution = p.execution || {};\nconst trigger = p.trigger || {};\nconst workflow = p.workflow || {};\nif (!workflow.id) throw new Error('Error Trigger payload missing workflow.id');\nconst err = execution.error || trigger.error || {};\nconst executionId = execution.id ? String(execution.id) : `trigger_${crypto.createHash('sha256').update(`${workflow.id}:${err.message}:${trigger.timestamp || ''}`).digest('hex').slice(0, 16)}`;\nconst httpStatus = Number(err.httpCode || (err.context && err.context.httpCode) || NaN);\nconst event = {\n  event: 'workflow.execution.failed',\n  eventId: `n8n_${crypto.createHash('sha256').update(`${workflow.id}:${executionId}:failed`).digest('hex').slice(0, 32)}`,\n  source: 'n8n',\n  workflow: { id: String(workflow.id), name: workflow.name || 'Unnamed workflow' },\n  execution: {\n    id: executionId,\n    status: 'error',\n    mode: execution.mode || trigger.mode,\n    retryOf: execution.retryOf ? String(execution.retryOf) : null,\n    error: {\n      message: String(err.message || err.description || 'Workflow execution failed').slice(0, 2000),\n      node: execution.lastNodeExecuted || (err.node && err.node.name) || undefined,\n      ...(Number.isFinite(httpStatus) ? { httpStatus, code: httpStatus === 429 ? 'RATE_LIMITED' : `HTTP_${httpStatus}` } : {}),\n    },\n  },\n  occurredAt: new Date().toISOString(),\n};\nreturn [{ json: { event } }];"
+      }
+    },
+    {
+      "id": "a1fe28cc-b0a6-5c66-8442-55fe392c5f1d",
+      "name": "Sign Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst crypto = require('crypto');\nfunction sign(body) {\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const nonce = crypto.randomBytes(16).toString('hex');\n  const sig = crypto.createHmac('sha256', $env.LOOPMEND_WEBHOOK_SECRET).update(`${ts}.${nonce}.${body}`).digest('hex');\n  return {\n    'content-type': 'application/json',\n    'x-loopmend-integration': $env.LOOPMEND_INTEGRATION_ID,\n    'x-loopmend-timestamp': ts,\n    'x-loopmend-nonce': nonce,\n    'x-loopmend-signature': `v1=${sig}`,\n  };\n}\n\n// Sign the exact bytes that will be sent. A fresh nonce per attempt keeps\n// replay protection intact while the eventId keeps ingestion idempotent.\nconst body = JSON.stringify($input.first().json.event);\nreturn [{ json: { body, headers: sign(body) } }];"
+      }
+    },
+    {
+      "id": "44959298-2ba2-59c7-a673-02d66e76be9e",
+      "name": "Send to Loopmend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LOOPMEND_URL }}/api/v1/webhooks/n8n/incident",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "3b5f46ac-3ef7-50fc-9bac-484cd70c4967",
+      "name": "Accepted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 300,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "57e072fb-60de-5a05-a1fc-f4871633883f",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "7ba84435-f8eb-57cf-a3ef-263da16968bc",
+      "name": "Record Permanent Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Loopmend rejected or is unreachable after bounded retries.\n// Surface it loudly: this execution fails and appears in n8n's execution list.\nconst r = $input.first().json;\nthrow new Error(`Loopmend ingestion failed: HTTP ${r.statusCode} ${JSON.stringify(r.body?.error ?? r.body ?? '').slice(0, 300)}`);"
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Payload": {
+      "main": [
+        [
+          {
+            "node": "Sign Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign Request": {
+      "main": [
+        [
+          {
+            "node": "Send to Loopmend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Loopmend": {
+      "main": [
+        [
+          {
+            "node": "Accepted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accepted?": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record Permanent Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "loopmend"
+    },
+    {
+      "name": "ingestion"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "loopmend": "Import via: n8n import:workflow --input=/workflows/<file>.json"
+  }
+}

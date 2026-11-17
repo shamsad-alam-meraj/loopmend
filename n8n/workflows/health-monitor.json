@@ -1,0 +1,111 @@
+{
+  "name": "Loopmend \u00b7 health-monitor",
+  "nodes": [
+    {
+      "id": "6a44e15f-23b8-55d7-a844-a1ae6a875f88",
+      "name": "Every Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e11ab447-d2ee-5fe4-b03d-4b02f1ebb992",
+      "name": "Run Due Recoveries",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.LOOPMEND_URL }}/api/v1/cron/recoveries",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.LOOPMEND_CRON_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 55000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "1af47eff-8245-594b-aaf9-e24615c5351e",
+      "name": "Check Loopmend Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.LOOPMEND_URL }}/api/v1/health",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Minute": {
+      "main": [
+        [
+          {
+            "node": "Run Due Recoveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Due Recoveries": {
+      "main": [
+        [
+          {
+            "node": "Check Loopmend Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "loopmend"
+    },
+    {
+      "name": "scheduler"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "loopmend": "Import via: n8n import:workflow --input=/workflows/<file>.json"
+  }
+}
