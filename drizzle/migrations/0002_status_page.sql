@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "status_page_enabled" boolean DEFAULT false NOT NULL;

@@ -53,7 +53,7 @@ function buildExecutions(orgId: string, workflowId: string, wf: DemoWorkflow, no
 async function seedOrg(db: Db, key: "acme" | "globex", workflows: DemoWorkflow[], userIds: Map<string, string>, now: number, days: number) {
   const [org] = await db
     .insert(schema.organizations)
-    .values({ name: DEMO_ORGS[key].name, slug: DEMO_ORGS[key].slug, isDemo: true })
+    .values({ name: DEMO_ORGS[key].name, slug: DEMO_ORGS[key].slug, isDemo: true, statusPageEnabled: key === "acme" })
     .returning();
   for (const u of DEMO_USERS.filter((u) => u.org === key)) {
     await db.insert(schema.memberships).values({ organizationId: org.id, userId: userIds.get(u.email)!, role: u.role });

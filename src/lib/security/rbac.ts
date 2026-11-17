@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   "workflow:manage": "admin",
   "integration:manage": "admin",
   "member:manage": "admin",
+  "org:settings": "admin",
   "audit:read": "operator",
   "org:delete": "owner",
   "org:transfer": "owner",
