@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
   // that must be loaded from node_modules at runtime rather than bundled.
   serverExternalPackages: ["@electric-sql/pglite", "postgres"],
   poweredByHeader: false,
+  // Self-contained server bundle for the Docker image (Vercel ignores this).
+  output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   turbopack: {
     rules: {
       "*.css": {

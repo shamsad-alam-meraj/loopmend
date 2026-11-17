@@ -1,0 +1,192 @@
+{
+  "name": "Loopmend \u00b7 reliability-reporter",
+  "nodes": [
+    {
+      "id": "6d1ab7b7-6c59-50c2-8121-b2bc5cb21850",
+      "name": "Daily 08:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0029b8ab-3cc6-5675-911c-caa42067f3bd",
+      "name": "Fetch Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.LOOPMEND_URL }}/api/v1/cron/reliability-report",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.LOOPMEND_CRON_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 55000
+        }
+      }
+    },
+    {
+      "id": "0b73f22c-ff56-5e11-b5e5-0b3dbee771da",
+      "name": "Format Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const reports = $input.first().json.data || [];\nconst pct = (v) => (v === null || v === undefined ? 'n/a' : `${(v * 100).toFixed(2)}%`);\nconst lines = reports.map((r) => [\n  `*${r.organization.name}* \u2014 success ${pct(r.successRate)} over ${r.executions} runs, p95 ${r.p95Ms ?? 'n/a'}ms, recovery success ${pct(r.recoverySuccessRate)}`,\n  ...r.anomalies.map((a) => `  \u2022 anomaly: ${a}`),\n  ...(r.sloBreaches.length ? [`  \u2022 SLO budget exhausted: ${r.sloBreaches.join(', ')}`] : []),\n].join('\\n'));\nreturn [{ json: { text: `Loopmend daily reliability report\\n${lines.join('\\n')}` } }];"
+      }
+    },
+    {
+      "id": "5e86ecf6-b73a-53ad-92d3-9108a5f72793",
+      "name": "Has Slack?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $env.SLACK_WEBHOOK_URL }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e8f7318e-f4c0-566b-a7cf-877b230dc9ba",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text }) }}"
+      }
+    },
+    {
+      "id": "f52e9b98-4dff-53e4-b95a-badc2054ea35",
+      "name": "Keep in Execution Log",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        80
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Daily 08:00 UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Report": {
+      "main": [
+        [
+          {
+            "node": "Format Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Summary": {
+      "main": [
+        [
+          {
+            "node": "Has Slack?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Slack?": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Keep in Execution Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "loopmend"
+    },
+    {
+      "name": "reporting"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "loopmend": "Import via: n8n import:workflow --input=/workflows/<file>.json"
+  }
+}
