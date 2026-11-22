@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { ok, fail, route } from "@/lib/http/api";
 import { databaseKind, getDb } from "@/lib/db/client";
 import { AppError } from "@/lib/utils/errors";
+import { encryptionKeyStatus } from "@/lib/security/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,7 @@ export const GET = route(async (_req, { requestId }) => {
     version: process.env.npm_package_version ?? "0.1.0",
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
-    checks: { database: { ok: dbOk, kind: databaseKind(), latencyMs: Date.now() - started, ...(reason ? { reason, host: describeHost(process.env.DATABASE_URL) } : {}) } },
+    checks: { encryptionKey: encryptionKeyStatus(), database: { ok: dbOk, kind: databaseKind(), latencyMs: Date.now() - started, ...(reason ? { reason, host: describeHost(process.env.DATABASE_URL) } : {}) } },
     time: new Date().toISOString(),
   };
   if (!dbOk) return fail(new AppError("SERVICE_UNAVAILABLE", "Database unavailable", body), requestId);
