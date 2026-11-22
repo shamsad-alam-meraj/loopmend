@@ -13,7 +13,7 @@ const DASHBOARD_PREFIXES = ["/overview", "/workflows", "/incidents", "/investiga
 const AUTH_PAGES = ["/login", "/register"];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 function sessionSecret(): string | null {
   const s = process.env.SESSION_SECRET;

@@ -11,6 +11,7 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: optional,
   NEXT_PUBLIC_SUPABASE_URL: optional,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: optional,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optional,
   SUPABASE_SERVICE_ROLE_KEY: optional,
   DATABASE_URL: optional,
   PGLITE_DATA_DIR: optional,
@@ -57,7 +58,7 @@ export const secrets = {
 };
 
 export const features = {
-  supabaseAuth: () => Boolean(env().NEXT_PUBLIC_SUPABASE_URL && env().NEXT_PUBLIC_SUPABASE_ANON_KEY),
+  supabaseAuth: () => Boolean(env().NEXT_PUBLIC_SUPABASE_URL && (env().NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env().NEXT_PUBLIC_SUPABASE_ANON_KEY)),
   externalDatabase: () => Boolean(env().DATABASE_URL),
   gemini: () => Boolean(env().GEMINI_API_KEY),
   n8n: () => Boolean(env().N8N_WEBHOOK_URL),

@@ -34,6 +34,7 @@ export default defineConfig({
       LOOPMEND_INTERNAL_URL: `http://127.0.0.1:${PORT}`,
       NEXT_PUBLIC_SUPABASE_URL: "",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
       GEMINI_API_KEY: "",
       N8N_WEBHOOK_URL: "",
       // next start runs with NODE_ENV=production, which requires a real key (test-only value).
