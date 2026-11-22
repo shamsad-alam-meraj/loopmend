@@ -7,6 +7,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # Major upgrades (TypeScript 7, Vitest 5, ESLint 10, postgres 4, …) change
+    # tooling behaviour and are done deliberately on a branch, not by bot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
