@@ -151,7 +151,7 @@ See [`.env.example`](.env.example). Everything is optional locally.
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Enables Gemini (default `gemini-2.5-flash`). |
 | `N8N_WEBHOOK_URL` | Recovery-executor webhook (e.g. `https://n8n.example.com/webhook/loopmend-recovery`). Empty → simulated executor in demo mode. |
 | `ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`). Required in production. |
-| `SESSION_SECRET`, `CRON_SECRET`, `N8N_WEBHOOK_SECRET` | ≥ 32 chars. Required in production. |
+| `SESSION_SECRET`, `CRON_SECRET`, `N8N_WEBHOOK_SECRET` | ≥ 32 chars. Required in production. `SESSION_SECRET_1` / `CRON_SECRET_1` are accepted as alternate names. |
 | `ENABLE_DEMO_MODE` | Demo sign-in, simulator and embedded DB (default on outside production; required to use the embedded DB in production). |
 | `APP_URL` | Public base URL, server-only (auth redirects, webhook URL shown in Settings, OpenAPI server). Optional on Vercel: defaults to the project's production URL. |
 | `LOOPMEND_INTERNAL_URL` | Optional URL the simulator posts to (falls back to `APP_URL`). |

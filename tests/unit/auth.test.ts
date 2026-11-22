@@ -43,3 +43,20 @@ describe("RBAC", () => {
     expect(() => authorize(systemContext("o"), "incident:update")).not.toThrow();
   });
 });
+
+describe("secret aliases", () => {
+  it("accepts SESSION_SECRET_1 / CRON_SECRET_1 and prefers the canonical names", async () => {
+    const { vi } = await import("vitest");
+    const { secrets } = await import("@/lib/env");
+    // env() re-reads process.env on every call only under NODE_ENV=test.
+    vi.stubEnv("SESSION_SECRET", "");
+    vi.stubEnv("SESSION_SECRET_1", "a".repeat(40));
+    vi.stubEnv("CRON_SECRET", "");
+    vi.stubEnv("CRON_SECRET_1", "b".repeat(40));
+    expect(secrets.session()).toBe("a".repeat(40));
+    expect(secrets.cron()).toBe("b".repeat(40));
+    vi.stubEnv("SESSION_SECRET", "c".repeat(40));
+    expect(secrets.session()).toBe("c".repeat(40));
+    vi.unstubAllEnvs();
+  });
+});

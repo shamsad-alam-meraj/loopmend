@@ -16,7 +16,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 function sessionSecret(): string | null {
-  const s = process.env.SESSION_SECRET;
+  const s = process.env.SESSION_SECRET || process.env.SESSION_SECRET_1;
   if (s && s.length >= 32) return s;
   // Fail closed in production: without a real secret nobody is considered signed in.
   return process.env.NODE_ENV === "production" ? null : "dev-only-insecure-secret-do-not-use-in-production-000";
