@@ -223,6 +223,8 @@ npm run db:migrate:remote
 npm run db:seed:remote
 ```
 
+**Rotating `ENCRYPTION_KEY`** (e.g. after exposure, or when Vercel uses a different key than the one data was encrypted with): put `OLD_ENCRYPTION_KEY` and `NEW_ENCRYPTION_KEY` in `.env.supabase.local`, run `npm run db:rotate-key:remote -- --dry-run`, then `npm run db:rotate-key:remote`, then set `ENCRYPTION_KEY` to the new key everywhere and redeploy. It runs in one transaction, skips rows already on the new key, and changes nothing if any secret is unreadable with both keys.
+
 **Migrations**: `npm run db:generate` after editing `drizzle/schema.ts`, review the SQL, commit. CI fails if the schema changes without a migration. Prefer the pipeline's migrate step; alternatively set `RUN_MIGRATIONS_ON_BUILD=true` to migrate inside `vercel-build` for production builds. Supabase-specific pieces (RLS helpers, `auth.uid()`, Realtime publication) are written to be idempotent and no-op on plain Postgres.
 
 **Region**: `vercel.json` pins functions to `hnd1` (Tokyo) to sit next to the Supabase project in `ap-northeast-1`. Every request makes several sequential queries, so keep the function region and database region the same; change `regions` if your database lives elsewhere.
