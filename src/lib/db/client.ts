@@ -72,7 +72,13 @@ async function init(): Promise<Db> {
     if (process.env.NODE_ENV !== "test" && demoModeEnabled()) {
       await import("./seed-hooks");
       const { seedDemoIfEmpty } = await import("./seed");
-      await seedDemoIfEmpty(db);
+      try {
+        await seedDemoIfEmpty(db);
+      } catch (e) {
+        logger.error("demo seeding failed", { reason: (e as Error).message });
+        holder.db = undefined;
+        throw e;
+      }
     }
   }
   holder.db = db;
