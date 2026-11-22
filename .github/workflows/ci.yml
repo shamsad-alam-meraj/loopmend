@@ -38,10 +38,11 @@ jobs:
         run: npm run typecheck
       - name: ESLint
         run: npm run lint
-      - name: Vitest unit tests
-        run: npm run test:unit
-      - name: Integration tests (embedded Postgres)
-        run: npm run test:integration
+      - name: Unit + integration tests with coverage (embedded Postgres)
+        run: npm run test:coverage
+      - name: Coverage summary
+        if: always()
+        run: node infrastructure/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
 
   migrations:
     name: Migrations on Postgres 16

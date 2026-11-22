@@ -20,7 +20,8 @@
     "db:reset:local": "rm -rf .data/pglite",
     "vercel-build": "tsx infrastructure/scripts/vercel-build.ts",
     "smoke": "bash infrastructure/scripts/smoke-test.sh",
-    "bench": "tsx infrastructure/scripts/benchmark.ts"
+    "bench": "tsx infrastructure/scripts/benchmark.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
@@ -45,6 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.12",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
