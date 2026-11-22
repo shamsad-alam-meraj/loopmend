@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { aiInvestigations, executions, incidentEvents, incidents, workflows } from "@schema";
 import { getDb } from "@/lib/db/client";
 import { AppError } from "@/lib/utils/errors";
@@ -48,7 +48,7 @@ export async function buildInvestigationContext(ctx: ServiceContext, incidentId:
         p95: sql<number | null>`percentile_cont(0.95) within group (order by ${executions.durationMs})`,
       })
       .from(executions)
-      .where(and(eq(executions.workflowId, w.id), gte(executions.startedAt, from), ...(to ? [sql`${executions.startedAt} < ${to}`] : [])));
+      .where(and(eq(executions.workflowId, w.id), gte(executions.startedAt, from), ...(to ? [lt(executions.startedAt, to)] : [])));
     return r;
   };
   const now = Date.now();

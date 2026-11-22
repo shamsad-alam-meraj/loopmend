@@ -3,7 +3,21 @@
   "framework": "nextjs",
   "buildCommand": "npm run vercel-build",
   "crons": [
-    { "path": "/api/v1/cron/recoveries", "schedule": "0 3 * * *" },
-    { "path": "/api/v1/cron/reliability-report", "schedule": "0 6 * * *" }
-  ]
+    {
+      "path": "/api/v1/cron/recoveries",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/v1/cron/reliability-report",
+      "schedule": "0 6 * * *"
+    }
+  ],
+  "regions": [
+    "hnd1"
+  ],
+  "functions": {
+    "src/app/**/*": {
+      "maxDuration": 60
+    }
+  }
 }

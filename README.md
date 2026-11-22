@@ -196,6 +196,8 @@ Integration tests run against an in-memory Postgres (PGlite) with the real migra
 
 ## CI/CD & deployment
 
+**Verify a deployment end to end**: `npm run check:api` (see `infrastructure/scripts/api-check.ts`) exercises every endpoint, including the signed webhooks, the full recovery lifecycle and the RBAC denials, and reports any unexpected status.
+
 **Pipelines** (`.github/workflows`):
 - `ci.yml`: typecheck → ESLint → unit → integration; **migration job** on a Postgres 16 service (schema/migration drift check, apply twice, seed); production build + Playwright E2E.
 - `deploy.yml`: on `main`: CI → **apply reviewed Drizzle migrations to production** → `vercel build --prod` → `vercel deploy --prebuilt --prod` → smoke test. Pull requests get preview deployments with a comment.
@@ -222,6 +224,8 @@ npm run db:seed:remote
 ```
 
 **Migrations**: `npm run db:generate` after editing `drizzle/schema.ts`, review the SQL, commit. CI fails if the schema changes without a migration. Prefer the pipeline's migrate step; alternatively set `RUN_MIGRATIONS_ON_BUILD=true` to migrate inside `vercel-build` for production builds. Supabase-specific pieces (RLS helpers, `auth.uid()`, Realtime publication) are written to be idempotent and no-op on plain Postgres.
+
+**Region**: `vercel.json` pins functions to `hnd1` (Tokyo) to sit next to the Supabase project in `ap-northeast-1`. Every request makes several sequential queries, so keep the function region and database region the same; change `regions` if your database lives elsewhere.
 
 **Scheduling**: Vercel Hobby crons run at most daily (`vercel.json` keeps a daily fallback). The n8n **health-monitor** workflow calls `/api/v1/cron/recoveries` every minute to run backoff retries and enforce deadlines.
 
