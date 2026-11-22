@@ -211,6 +211,16 @@ Integration tests run against an in-memory Postgres (PGlite) with the real migra
 4. Add the repository **variable** `DEPLOY_ENABLED=true` (Settings → Secrets and variables → Actions → Variables). Until then, pushes run CI only.
 5. Push to `main`. The pipeline migrates, deploys and smoke-tests (`infrastructure/scripts/smoke-test.sh`).
 
+**First-time database setup from your machine** (alternative to the GitHub pipeline): create a gitignored `.env.supabase.local` with `DATABASE_URL` (Supabase **session pooler**, port 5432), plus the same `ENCRYPTION_KEY` and `N8N_WEBHOOK_SECRET` as Vercel (and `ENABLE_DEMO_MODE=true` for demo data), then:
+
+```bash
+npm run db:migrate:remote
+```
+
+```bash
+npm run db:seed:remote
+```
+
 **Migrations**: `npm run db:generate` after editing `drizzle/schema.ts`, review the SQL, commit. CI fails if the schema changes without a migration. Prefer the pipeline's migrate step; alternatively set `RUN_MIGRATIONS_ON_BUILD=true` to migrate inside `vercel-build` for production builds. Supabase-specific pieces (RLS helpers, `auth.uid()`, Realtime publication) are written to be idempotent and no-op on plain Postgres.
 
 **Scheduling**: Vercel Hobby crons run at most daily (`vercel.json` keeps a daily fallback). The n8n **health-monitor** workflow calls `/api/v1/cron/recoveries` every minute to run backoff retries and enforce deadlines.
