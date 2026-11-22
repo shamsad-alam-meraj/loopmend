@@ -118,6 +118,19 @@ describe("POST /api/v1/webhooks/n8n/incident", () => {
     expect((await send("{not json")).status).toBe(400);
     const huge = JSON.stringify({ pad: "x".repeat(300 * 1024) });
     expect((await send(huge)).status).toBe(413);
+    // Chunked upload without content-length is cut off while streaming, before buffering it all.
+    const chunks = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (let i = 0; i < 64; i++) c.enqueue(new Uint8Array(16 * 1024).fill(120));
+        c.close();
+      },
+    });
+    resetRateLimits();
+    const chunked = await POST(
+      new NextRequest("http://localhost/api/v1/webhooks/n8n/incident", { method: "POST", body: chunks, duplex: "half", headers: { [HEADER.integration]: integrationId } } as never),
+      undefined as never,
+    );
+    expect(chunked.status).toBe(413);
   });
 
   it("correlates a new failure with the same signature as a recurrence", async () => {

@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { profiles } from "@schema";
 import { getDb } from "@/lib/db/client";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
@@ -8,6 +8,25 @@ import { AppError } from "@/lib/utils/errors";
 export type SessionUser = { id: string; email: string; fullName: string | null };
 
 const toUser = (p: typeof profiles.$inferSelect): SessionUser => ({ id: p.id, email: p.email, fullName: p.fullName });
+
+/** Local auth: returns the user only if the token's session version is still current. */
+export async function findUserForSession(id: string, version: number): Promise<SessionUser | null> {
+  const db = await getDb();
+  const [p] = await db.select().from(profiles).where(eq(profiles.id, id));
+  return p && p.sessionVersion === version ? toUser(p) : null;
+}
+
+export async function currentSessionVersion(id: string): Promise<number> {
+  const db = await getDb();
+  const [p] = await db.select({ v: profiles.sessionVersion }).from(profiles).where(eq(profiles.id, id));
+  return p?.v ?? 0;
+}
+
+/** Revokes all local sessions for a user (sign out everywhere). */
+export async function revokeSessions(id: string) {
+  const db = await getDb();
+  await db.update(profiles).set({ sessionVersion: sql`${profiles.sessionVersion} + 1` }).where(eq(profiles.id, id));
+}
 
 export async function findUserById(id: string): Promise<SessionUser | null> {
   const db = await getDb();

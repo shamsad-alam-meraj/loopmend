@@ -6,7 +6,8 @@ import { z } from "zod";
 import { requirePageAuth, toServiceContext } from "@/lib/auth";
 import { createIntegration, deleteIntegration, rotateWebhookSecret, testIntegration } from "@/services/integration.service";
 import { SCENARIOS, simulateFailure, type Scenario } from "@/services/simulator.service";
-import { isAppError } from "@/lib/utils/errors";
+import { AppError, isAppError } from "@/lib/utils/errors";
+import { features } from "@/lib/env";
 
 export type IntegrationFormState = { error?: string; message?: string; secret?: { integrationId: string; webhookSecret: string } };
 
@@ -65,16 +66,22 @@ export async function deleteIntegrationAction(formData: FormData) {
 
 export type SimulationState = { error?: string; result?: { label: string; status: number; outcome?: string; incidentNumber?: number | null; incidentId?: string | null; duplicate?: boolean; message?: string }[] };
 
+/**
+ * Where the simulator sends its signed request. Configured URLs only in
+ * production: request Host headers are client-controlled and would let a
+ * caller redirect a validly signed payload elsewhere.
+ */
 async function selfBaseUrl() {
-  if (process.env.LOOPMEND_INTERNAL_URL) return process.env.LOOPMEND_INTERNAL_URL;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
-  return `${proto}://${host}`;
+  const configured = process.env.LOOPMEND_INTERNAL_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") throw new AppError("SERVICE_UNAVAILABLE", "Set NEXT_PUBLIC_APP_URL to use the simulator");
+  const host = (await headers()).get("host") ?? "localhost:3000";
+  return /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ? `http://${host}` : "http://localhost:3000";
 }
 
 export async function simulateFailureAction(_prev: SimulationState, formData: FormData): Promise<SimulationState> {
   const auth = await requirePageAuth("demo:simulate");
+  if (!features.demoMode()) return { error: "The failure simulator is only available in demo mode" };
   const parsed = z
     .object({ workflowId: z.uuid(), scenario: z.enum(Object.keys(SCENARIOS) as [Scenario, ...Scenario[]]), deliverTwice: z.string().optional() })
     .safeParse(Object.fromEntries(formData));

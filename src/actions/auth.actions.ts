@@ -12,6 +12,7 @@ import { createLocalUser, findUserByEmail, verifyLocalCredentials } from "@/serv
 import { createOrganization, listUserMemberships } from "@/services/organization.service";
 import { DEMO_USERS } from "@/lib/db/demo-data";
 import { isAppError } from "@/lib/utils/errors";
+import { clientIp, safeRedirectPath } from "@/lib/http/request-safety";
 
 export type FormState = { error?: string; message?: string; fieldErrors?: Record<string, string> };
 
@@ -23,11 +24,13 @@ const registerSchema = z.object({
   organization: z.string().trim().min(2, "Organization name must be at least 2 characters").max(80),
 });
 
-async function throttle(scope: string) {
+async function throttle(scope: string, account?: string) {
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  const rl = rateLimit(`${scope}:${ip}`, { capacity: 10, refillPerSecond: 0.2 });
-  return rl.allowed;
+  const ip = clientIp((name) => h.get(name));
+  const byIp = rateLimit(`${scope}:ip:${ip}`, { capacity: 10, refillPerSecond: 0.2 });
+  // Per-account limit as well, so rotating IPs cannot brute-force one account.
+  const byAccount = account ? rateLimit(`${scope}:acct:${account.toLowerCase()}`, { capacity: 10, refillPerSecond: 1 / 60 }) : { allowed: true };
+  return byIp.allowed && byAccount.allowed;
 }
 
 function fieldErrors(error: z.ZodError): Record<string, string> {
@@ -36,23 +39,22 @@ function fieldErrors(error: z.ZodError): Record<string, string> {
   return out;
 }
 
-function safeNext(next: FormDataEntryValue | null): string {
-  const value = typeof next === "string" ? next : "";
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/overview";
-}
+const safeNext = (next: FormDataEntryValue | null) => safeRedirectPath(next);
 
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  if (!(await throttle("login"))) return { error: "Too many attempts. Please wait a minute." };
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
   const { email, password } = parsed.data;
+  if (!(await throttle("login", email))) return { error: "Too many attempts. Please wait a minute." };
 
   if (isSupabaseConfigured) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: "Invalid email or password" };
   } else {
-    const user = await verifyLocalCredentials(email, password);
+    // Seeded demo accounts have a public password: only usable in demo mode.
+    const isDemoAccount = DEMO_USERS.some((u) => u.email === email.trim().toLowerCase());
+    const user = isDemoAccount && !features.demoMode() ? null : await verifyLocalCredentials(email, password);
     if (!user) return { error: "Invalid email or password" };
     await startLocalSession(user.id);
   }

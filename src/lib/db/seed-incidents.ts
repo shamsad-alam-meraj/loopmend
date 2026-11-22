@@ -1,4 +1,5 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
 import { and, asc, eq, gte } from "drizzle-orm";
 import * as schema from "@schema";
 import type { Db } from "./client";
@@ -13,7 +14,8 @@ export const DEMO_INTEGRATION_NAME = "Demo n8n";
 
 /** Demo integration secret: N8N_WEBHOOK_SECRET so a local docker n8n can sign requests. */
 function demoWebhookSecret() {
-  return process.env.N8N_WEBHOOK_SECRET || "dev-only-webhook-secret-change-me-0123456789";
+  // Never fall back to a value that is public in the repository.
+  return process.env.N8N_WEBHOOK_SECRET || randomBytes(32).toString("hex");
 }
 
 registerSeedHook(async (db: Db, { orgIds }) => {

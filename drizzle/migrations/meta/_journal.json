@@ -29,6 +29,20 @@
       "when": 1794904449153,
       "tag": "0003_supabase_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795342018699,
+      "tag": "0004_session_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795342023566,
+      "tag": "0005_harden_search_path",
+      "breakpoints": true
     }
   ]
 }

@@ -91,6 +91,8 @@ export const profiles = pgTable("profiles", {
   fullName: text("full_name"),
   /** scrypt hash — only used by local auth mode; null for Supabase users. */
   passwordHash: text("password_hash"),
+  /** Bumped on sign-out to revoke every local session token issued before it. */
+  sessionVersion: integer("session_version").notNull().default(0),
   createdAt: createdAt(),
 });
 

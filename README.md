@@ -99,6 +99,7 @@ Route Handlers are thin; business rules live in `src/services/*`, contracts in `
 - **AI safety**: sanitized, delimited context treated as data; schema-validated output; allowlisted strategies; deterministic guards; confidence never authorizes execution.
 - **Recovery safety**: approval gates, four-eyes for high risk, retry budgets, deadlines, side-effect checks, dead-letter for ambiguous outcomes.
 - **Headers**: `nosniff`, `X-Frame-Options: DENY`, strict referrer and permissions policies.
+- **Review**: an independent security review (2026-11-22) and its fixes are documented in [SECURITY.md](SECURITY.md).
 
 ## API
 
@@ -151,7 +152,10 @@ See [`.env.example`](.env.example). Everything is optional locally.
 | `N8N_WEBHOOK_URL` | Recovery-executor webhook (e.g. `https://n8n.example.com/webhook/loopmend-recovery`). Empty → simulated executor in demo mode. |
 | `ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`). Required in production. |
 | `SESSION_SECRET`, `CRON_SECRET`, `N8N_WEBHOOK_SECRET` | ≥ 32 chars. Required in production. |
-| `ENABLE_DEMO_MODE` | Demo sign-in + simulator (default on outside production). |
+| `ENABLE_DEMO_MODE` | Demo sign-in, simulator and embedded DB (default on outside production; required to use the embedded DB in production). |
+| `LOOPMEND_INTERNAL_URL` | Runtime URL the simulator posts to (falls back to `NEXT_PUBLIC_APP_URL`, which is inlined at build time). |
+| `ALLOW_PRIVATE_INTEGRATION_URLS` | Allow private/loopback n8n URLs in production (self-hosted on one network). |
+| `WEBHOOK_RATE_LIMIT_PER_SEC` | Sustained webhook events/s per integration (default 50, burst 4×). |
 | `SENTRY_DSN` | Error reporting via Sentry's envelope API. |
 
 ## Testing

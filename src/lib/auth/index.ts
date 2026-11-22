@@ -8,7 +8,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { can, type Permission } from "@/lib/security/rbac";
 import { AppError } from "@/lib/utils/errors";
-import { ensureProfile, findUserById, type SessionUser } from "@/services/user.service";
+import { currentSessionVersion, ensureProfile, findUserForSession, revokeSessions, type SessionUser } from "@/services/user.service";
 import { listUserMemberships } from "@/services/organization.service";
 import type { ServiceContext } from "@/services/context";
 import { createSessionToken, ORG_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS, verifySessionToken } from "./session-token";
@@ -32,7 +32,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const payload = verifySessionToken(token, secrets.session());
   if (!payload) return null;
-  return findUserById(payload.sub);
+  return findUserForSession(payload.sub, payload.ver ?? 0);
 });
 
 /** Resolves user + active organization + role. `preferredOrg` may be an id or slug. */
@@ -86,7 +86,8 @@ const cookieBase = {
 /** Local auth only: issue the signed session cookie. */
 export async function startLocalSession(userId: string) {
   const store = await cookies();
-  store.set(SESSION_COOKIE, createSessionToken(userId, secrets.session()), { ...cookieBase, maxAge: SESSION_TTL_SECONDS });
+  const version = await currentSessionVersion(userId);
+  store.set(SESSION_COOKIE, createSessionToken(userId, secrets.session(), Date.now(), version), { ...cookieBase, maxAge: SESSION_TTL_SECONDS });
 }
 
 export async function setActiveOrg(orgId: string) {
@@ -94,6 +95,11 @@ export async function setActiveOrg(orgId: string) {
 }
 
 export async function endSession() {
+  if (!isSupabaseConfigured) {
+    // Invalidate the token server-side too, so a copied cookie stops working.
+    const payload = verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value, secrets.session());
+    if (payload) await revokeSessions(payload.sub);
+  }
   if (isSupabaseConfigured) {
     const supabase = await createSupabaseServerClient();
     await supabase.auth.signOut();
