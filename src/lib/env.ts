@@ -8,6 +8,7 @@ const optional = z
 
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  APP_URL: optional,
   NEXT_PUBLIC_APP_URL: optional,
   NEXT_PUBLIC_SUPABASE_URL: optional,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: optional,

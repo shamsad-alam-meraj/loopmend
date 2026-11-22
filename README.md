@@ -153,7 +153,8 @@ See [`.env.example`](.env.example). Everything is optional locally.
 | `ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`). Required in production. |
 | `SESSION_SECRET`, `CRON_SECRET`, `N8N_WEBHOOK_SECRET` | ≥ 32 chars. Required in production. |
 | `ENABLE_DEMO_MODE` | Demo sign-in, simulator and embedded DB (default on outside production; required to use the embedded DB in production). |
-| `LOOPMEND_INTERNAL_URL` | Runtime URL the simulator posts to (falls back to `NEXT_PUBLIC_APP_URL`, which is inlined at build time). |
+| `APP_URL` | Public base URL, server-only (auth redirects, webhook URL shown in Settings, OpenAPI server). Optional on Vercel: defaults to the project's production URL. |
+| `LOOPMEND_INTERNAL_URL` | Optional URL the simulator posts to (falls back to `APP_URL`). |
 | `ALLOW_PRIVATE_INTEGRATION_URLS` | Allow private/loopback n8n URLs in production (self-hosted on one network). |
 | `WEBHOOK_RATE_LIMIT_PER_SEC` | Sustained webhook events/s per integration (default 50, burst 4×). |
 | `SENTRY_DSN` | Error reporting via Sentry's envelope API. |

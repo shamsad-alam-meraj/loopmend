@@ -1,5 +1,6 @@
 "use server";
 
+import { appUrl } from "@/lib/app-url";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -70,7 +71,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
   try {
     if (isSupabaseConfigured) {
       const supabase = await createSupabaseServerClient();
-      const origin = (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+      const origin = appUrl() ?? (await headers()).get("origin") ?? "";
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

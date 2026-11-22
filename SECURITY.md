@@ -23,7 +23,7 @@ An independent review read every service query, route handler, server action, th
 | 1 | Medium | Open redirect via `?next=/\evil.com` after login | `safeRedirectPath()` parses with the URL parser and rejects backslashes/control characters (raw or encoded) |
 | 2 | Medium | Embedded DB could auto-seed demo users (public password) in production | Embedded DB and seeding refuse to run in production without `ENABLE_DEMO_MODE=true`; demo accounts can't sign in outside demo mode; no public fallback webhook secret |
 | 3 | Medium-low | SSRF through "Test n8n API" (localhost allowed, redirects followed, verbose errors) | `assertSafeOutboundUrl()` after DNS resolution, `redirect: "manual"`, generic errors; private targets only with `ALLOW_PRIVATE_INTEGRATION_URLS=true` |
-| 4 | Medium-low | Simulator derived its target from the Host header | Uses `LOOPMEND_INTERNAL_URL` / `NEXT_PUBLIC_APP_URL` only in production; simulator gated to demo mode |
+| 4 | Medium-low | Simulator derived its target from the Host header | Uses `LOOPMEND_INTERNAL_URL` / `APP_URL` (or Vercel's project URL) only in production; simulator gated to demo mode |
 | 5 | Low | Login throttle keyed on spoofable `X-Forwarded-For` | Platform IP / right-most hop, plus a per-account limit |
 | 6 | Low | Webhook bodies buffered before the size check | Streaming read aborts past the limit |
 | 7 | Low | Local sessions not revocable | `profiles.session_version`; sign-out revokes all sessions |

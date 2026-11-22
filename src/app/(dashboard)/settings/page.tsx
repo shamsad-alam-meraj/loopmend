@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/app-url";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePageAuth, toServiceContext } from "@/lib/auth";
@@ -33,7 +34,7 @@ export default async function SettingsPage() {
   const [orgRow] = await (await getDb()).select({ enabled: organizations.statusPageEnabled }).from(organizations).where(eq(organizations.id, auth.org.id));
   const statusEnabled = orgRow?.enabled ?? false;
   const h = await headers();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+  const baseUrl = appUrl() || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
 
   return (
     <>
@@ -43,7 +44,7 @@ export default async function SettingsPage() {
         actions={<Link href="/onboarding" className={buttonVariants({ variant: "outline", size: "sm" })}>New organization</Link>}
       />
       <div className="space-y-6">
-        <IntegrationsCard auth={auth} appUrl={appUrl} />
+        <IntegrationsCard auth={auth} appUrl={baseUrl} />
         <Card>
           <CardHeader>
             <CardTitle>Public status page</CardTitle>
@@ -51,7 +52,7 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3">
             {statusEnabled ? (
-              <Link href={`/status/${auth.org.slug}`} className="text-sm text-primary hover:underline" target="_blank">{appUrl}/status/{auth.org.slug}</Link>
+              <Link href={`/status/${auth.org.slug}`} className="text-sm text-primary hover:underline" target="_blank">{baseUrl}/status/{auth.org.slug}</Link>
             ) : (
               <span className="text-sm text-muted-foreground">Disabled</span>
             )}
