@@ -5,6 +5,7 @@ import { AppError, isAppError } from "@/lib/utils/errors";
 import { prefixedId } from "@/lib/utils/ids";
 import { reportError } from "@/lib/observability/report";
 import { rateLimit } from "./rate-limit";
+import { clientIp, readLimited } from "./request-safety";
 
 export type ApiEnvelope<T> = {
   success: boolean;
@@ -31,16 +32,15 @@ export function fail(error: AppError, requestId: string, headers: Record<string,
 }
 
 export function clientKey(req: NextRequest): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  return (fwd?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local").slice(0, 64);
+  return clientIp((name) => req.headers.get(name));
 }
 
 /** Read the body as text with a hard size cap (protects against huge payloads). */
 export async function readBodyText(req: Request, maxBytes = MAX_JSON_BYTES): Promise<string> {
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (declared > maxBytes) throw new AppError("PAYLOAD_TOO_LARGE", `Body exceeds ${maxBytes} bytes`);
-  const text = await req.text();
-  if (Buffer.byteLength(text, "utf8") > maxBytes) throw new AppError("PAYLOAD_TOO_LARGE", `Body exceeds ${maxBytes} bytes`);
+  const { text, tooLarge } = await readLimited(req.body, maxBytes);
+  if (tooLarge) throw new AppError("PAYLOAD_TOO_LARGE", `Body exceeds ${maxBytes} bytes`);
   return text;
 }
 

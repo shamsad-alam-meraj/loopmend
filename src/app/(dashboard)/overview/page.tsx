@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Activity, AlertTriangle, Clock, Gauge, Siren, Timer } from "lucide-react";
 import { requirePageAuth, toServiceContext } from "@/lib/auth";
 import { can } from "@/lib/security/rbac";
+import { features } from "@/lib/env";
 import { getIncidentCounts, listIncidents } from "@/services/incident.service";
 import { executionTimeline, listWorkflows } from "@/services/workflow.service";
 import { incidentResponseTimes, reliabilitySummary } from "@/services/reliability.service";
@@ -49,7 +50,7 @@ export default async function OverviewPage() {
             <CardContent><ExecutionChart data={timeline} /></CardContent>
           </Card>
           <OverviewExtras auth={auth} />
-          {can(auth.role, "demo:simulate") && (
+          {can(auth.role, "demo:simulate") && features.demoMode() && (
             <Card id="simulator" className="scroll-mt-6">
               <CardHeader>
                 <CardTitle>Failure simulator</CardTitle>

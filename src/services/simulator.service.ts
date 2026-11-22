@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { integrations, workflows } from "@schema";
 import { getDb } from "@/lib/db/client";
 import { HEADER, signPayload } from "@/lib/n8n/signing";
@@ -48,7 +48,7 @@ export async function simulateFailure(ctx: ServiceContext, input: { workflowId: 
   const [integration] = await db
     .select()
     .from(integrations)
-    .where(and(eq(integrations.organizationId, ctx.organizationId), eq(integrations.type, "n8n")))
+    .where(and(eq(integrations.organizationId, ctx.organizationId), eq(integrations.type, "n8n"), ne(integrations.status, "disabled")))
     .limit(1);
   if (!integration) throw new AppError("BAD_REQUEST", "Connect an n8n integration first (Settings → Integrations)");
   const { webhookSecret } = openSecrets(ctx.organizationId, integration.encryptedConfig);

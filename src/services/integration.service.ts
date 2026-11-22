@@ -5,6 +5,7 @@ import { integrations } from "@schema";
 import { getDb, type Executor } from "@/lib/db/client";
 import { decryptJson, encryptJson, secretHint } from "@/lib/security/crypto";
 import { AppError } from "@/lib/utils/errors";
+import { assertSafeOutboundUrl, privateUrlsAllowed } from "@/lib/security/outbound-url";
 import { authorize, type ServiceContext } from "./context";
 import { recordAudit } from "./audit.service";
 
@@ -49,9 +50,8 @@ function validateBaseUrl(baseUrl?: string | null) {
     throw new AppError("VALIDATION_FAILED", "Base URL must be a valid URL");
   }
   if (!["https:", "http:"].includes(url.protocol)) throw new AppError("VALIDATION_FAILED", "Base URL must be http(s)");
-  if (url.protocol === "http:" && process.env.NODE_ENV === "production" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
-    throw new AppError("VALIDATION_FAILED", "Use https for remote n8n instances");
-  }
+  if (url.username || url.password) throw new AppError("VALIDATION_FAILED", "Do not put credentials in the URL");
+  if (url.protocol === "http:" && !privateUrlsAllowed()) throw new AppError("VALIDATION_FAILED", "Use https for n8n instances");
   return url.origin;
 }
 
@@ -146,12 +146,15 @@ export async function testIntegration(ctx: ServiceContext, integrationId: string
   const { apiKey } = openSecrets(ctx.organizationId, row.encryptedConfig);
   if (!row.baseUrl || !apiKey) return { ok: false, message: "Add a base URL and API key to test the n8n API. Webhook ingestion works without them." };
   try {
-    const res = await fetch(`${row.baseUrl}/api/v1/workflows?limit=1`, { headers: { "X-N8N-API-KEY": apiKey }, signal: AbortSignal.timeout(5000) });
+    const target = await assertSafeOutboundUrl(`${row.baseUrl}/api/v1/workflows?limit=1`);
+    // No redirects: a public URL must not bounce the API key to an internal address.
+    const res = await fetch(target, { headers: { "X-N8N-API-KEY": apiKey }, redirect: "manual", signal: AbortSignal.timeout(5000) });
     const ok = res.ok;
     await db.update(integrations).set({ status: ok ? "connected" : "error", lastVerifiedAt: new Date() }).where(eq(integrations.id, row.id));
-    return { ok, message: ok ? "Connected to n8n API" : `n8n API responded with HTTP ${res.status}` };
-  } catch (e) {
+    return { ok, message: ok ? "Connected to n8n API" : "n8n API rejected the request (check the URL and API key)" };
+  } catch {
     await db.update(integrations).set({ status: "error" }).where(eq(integrations.id, row.id));
-    return { ok: false, message: `Could not reach n8n: ${(e as Error).message}` };
+    // Generic on purpose: detailed network errors would turn this into a port scanner.
+    return { ok: false, message: "Could not reach the n8n API at that URL" };
   }
 }

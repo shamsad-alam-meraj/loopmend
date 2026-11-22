@@ -1,7 +1,7 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import * as schema from "@schema";
-import type { Db } from "./client";
+import { demoModeEnabled, type Db } from "./client";
 import { hashPassword } from "@/lib/security/password";
 import { logger } from "@/lib/utils/logger";
 import { DEMO_ORGS, DEMO_PASSWORD, DEMO_USERS, DEMO_WORKFLOWS, GLOBEX_WORKFLOWS, mulberry32, type DemoWorkflow } from "./demo-data";
@@ -85,6 +85,8 @@ async function seedOrg(db: Db, key: "acme" | "globex", workflows: DemoWorkflow[]
 
 /** Seeds clearly-labeled demo organizations if the database has none. */
 export async function seedDemoIfEmpty(db: Db): Promise<boolean> {
+  // Demo accounts use a password that is public in this repository: never create them outside demo mode.
+  if (!demoModeEnabled()) return false;
   const existing = await db.select({ id: schema.organizations.id }).from(schema.organizations).limit(1);
   if (existing.length > 0) return false;
   await seedDemo(db);

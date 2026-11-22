@@ -16,6 +16,13 @@ type Holder = { db?: Db; ready?: Promise<Db>; kind?: "postgres" | "pglite"; clos
 const g = globalThis as unknown as { __loopmendDb?: Holder };
 const holder: Holder = (g.__loopmendDb ??= {});
 
+/** Same rule as features.demoMode(), without importing env (keeps this module light). */
+export function demoModeEnabled() {
+  const flag = process.env.ENABLE_DEMO_MODE?.trim();
+  if (flag) return flag === "true" || flag === "1";
+  return process.env.NODE_ENV !== "production";
+}
+
 export const MIGRATIONS_FOLDER = path.join(process.cwd(), "drizzle", "migrations");
 
 async function connectPostgres(url: string): Promise<Db> {
@@ -53,12 +60,16 @@ async function init(): Promise<Db> {
   if (url) {
     db = await connectPostgres(url);
   } else {
+    // The embedded database (and its seeded demo accounts) is for local dev and demos only.
+    if (process.env.NODE_ENV === "production" && !demoModeEnabled()) {
+      throw new Error("DATABASE_URL is required in production (the embedded database is only allowed with ENABLE_DEMO_MODE=true)");
+    }
     const dir = process.env.PGLITE_DATA_DIR?.trim() || path.join(process.cwd(), ".data", "pglite");
     logger.info("using embedded PGlite database", { dir });
     db = await connectPglite(dir);
     // Publish the handle before seeding so seed hooks can use services that call getDb().
     holder.db = db;
-    if (process.env.NODE_ENV !== "test") {
+    if (process.env.NODE_ENV !== "test" && demoModeEnabled()) {
       await import("./seed-hooks");
       const { seedDemoIfEmpty } = await import("./seed");
       await seedDemoIfEmpty(db);

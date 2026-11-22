@@ -15,9 +15,11 @@ const AUTH_PAGES = ["/login", "/register"];
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-function sessionSecret() {
+function sessionSecret(): string | null {
   const s = process.env.SESSION_SECRET;
-  return s && s.length >= 32 ? s : "dev-only-insecure-secret-do-not-use-in-production-000";
+  if (s && s.length >= 32) return s;
+  // Fail closed in production: without a real secret nobody is considered signed in.
+  return process.env.NODE_ENV === "production" ? null : "dev-only-insecure-secret-do-not-use-in-production-000";
 }
 
 export async function proxy(request: NextRequest) {
@@ -39,7 +41,8 @@ export async function proxy(request: NextRequest) {
     const { data } = await supabase.auth.getUser();
     signedIn = Boolean(data.user);
   } else {
-    signedIn = Boolean(verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value, sessionSecret()));
+    const secret = sessionSecret();
+    signedIn = secret !== null && Boolean(verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value, secret));
   }
 
   const isDashboard = DASHBOARD_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import {
   aiInvestigations,
   approvals,
@@ -44,7 +44,11 @@ async function resolveExecutor(orgId: string): Promise<RecoveryExecutor> {
   const url = process.env.N8N_WEBHOOK_URL?.trim();
   if (url) {
     const db = await getDb();
-    const [integration] = await db.select().from(integrations).where(and(eq(integrations.organizationId, orgId), eq(integrations.type, "n8n"))).limit(1);
+    const [integration] = await db
+      .select()
+      .from(integrations)
+      .where(and(eq(integrations.organizationId, orgId), eq(integrations.type, "n8n"), ne(integrations.status, "disabled")))
+      .limit(1);
     if (!integration) throw new AppError("SERVICE_UNAVAILABLE", "No n8n integration to sign recovery requests");
     return new N8nRecoveryExecutor(url, openSecrets(orgId, integration.encryptedConfig).webhookSecret, integration.id);
   }

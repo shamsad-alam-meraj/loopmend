@@ -29,6 +29,9 @@ export default defineConfig({
       PGLITE_DATA_DIR: dataDir,
       DATABASE_URL: "",
       ENABLE_DEMO_MODE: "true",
+      // The simulator only posts to a configured URL (never the request Host header).
+      // Runtime variable on purpose: NEXT_PUBLIC_* values are inlined at build time.
+      LOOPMEND_INTERNAL_URL: `http://127.0.0.1:${PORT}`,
       NEXT_PUBLIC_SUPABASE_URL: "",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
       GEMINI_API_KEY: "",
