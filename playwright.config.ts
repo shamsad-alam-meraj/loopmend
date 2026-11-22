@@ -36,6 +36,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
       GEMINI_API_KEY: "",
       N8N_WEBHOOK_URL: "",
+      // next start runs with NODE_ENV=production, which requires a real key (test-only value).
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY ?? Buffer.alloc(32, 7).toString("base64"),
       SESSION_SECRET: process.env.SESSION_SECRET ?? "e2e-session-secret-0123456789abcdef0123456789",
       N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET ?? "e2e-webhook-secret-0123456789abcdef012345678",
       CRON_SECRET: process.env.CRON_SECRET ?? "e2e-cron-secret-0123456789abcdef0123456789abc",

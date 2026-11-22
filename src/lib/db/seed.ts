@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "@schema";
 import { demoModeEnabled, type Db } from "./client";
 import { hashPassword } from "@/lib/security/password";
+import { encryptSecret } from "@/lib/security/crypto";
 import { logger } from "@/lib/utils/logger";
 import { DEMO_ORGS, DEMO_PASSWORD, DEMO_USERS, DEMO_WORKFLOWS, GLOBEX_WORKFLOWS, mulberry32, type DemoWorkflow } from "./demo-data";
 
@@ -94,6 +95,9 @@ export async function seedDemoIfEmpty(db: Db): Promise<boolean> {
 }
 
 export async function seedDemo(db: Db, now = Date.now(), opts: { days?: number } = {}) {
+  // Fail before writing anything if secrets can't be sealed (e.g. ENCRYPTION_KEY missing in
+  // production) — a half-seeded database would otherwise never be re-seeded.
+  encryptSecret("seed-preflight");
   const days = opts.days ?? 14;
   const started = Date.now();
   const passwordHash = await hashPassword(DEMO_PASSWORD);
