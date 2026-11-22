@@ -21,7 +21,9 @@
     "vercel-build": "tsx infrastructure/scripts/vercel-build.ts",
     "smoke": "bash infrastructure/scripts/smoke-test.sh",
     "bench": "tsx infrastructure/scripts/benchmark.ts",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "db:migrate:remote": "tsx --env-file=.env.supabase.local --conditions=react-server infrastructure/scripts/db-migrate.ts",
+    "db:seed:remote": "tsx --env-file=.env.supabase.local --conditions=react-server infrastructure/scripts/db-seed.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
