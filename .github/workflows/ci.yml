@@ -90,7 +90,7 @@ jobs:
     needs: quality
     timeout-minutes: 25
     env:
-      PGLITE_DATA_DIR: ${{ runner.temp }}/pglite-e2e
+      # playwright.config.ts creates a fresh embedded database under the OS temp dir.
       ENABLE_DEMO_MODE: "true"
     steps:
       - uses: actions/checkout@v4
