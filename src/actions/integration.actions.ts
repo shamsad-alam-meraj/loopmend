@@ -1,5 +1,6 @@
 "use server";
 
+import { appUrl } from "@/lib/app-url";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -72,9 +73,9 @@ export type SimulationState = { error?: string; result?: { label: string; status
  * caller redirect a validly signed payload elsewhere.
  */
 async function selfBaseUrl() {
-  const configured = process.env.LOOPMEND_INTERNAL_URL || process.env.NEXT_PUBLIC_APP_URL;
+  const configured = process.env.LOOPMEND_INTERNAL_URL || appUrl();
   if (configured) return configured;
-  if (process.env.NODE_ENV === "production") throw new AppError("SERVICE_UNAVAILABLE", "Set NEXT_PUBLIC_APP_URL to use the simulator");
+  if (process.env.NODE_ENV === "production") throw new AppError("SERVICE_UNAVAILABLE", "Set APP_URL to use the simulator");
   const host = (await headers()).get("host") ?? "localhost:3000";
   return /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ? `http://${host}` : "http://localhost:3000";
 }
