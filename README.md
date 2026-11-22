@@ -103,7 +103,7 @@ Route Handlers are thin; business rules live in `src/services/*`, contracts in `
 
 ## API
 
-All responses use the envelope `{ success, data, error, meta: { requestId } }`. User endpoints require a session and organization membership (optionally `x-organization-id`).
+Interactive reference at **`/api-docs`**; machine-readable **OpenAPI 3.1** at **`/api/v1/openapi.json`** (generated from the same Zod schemas that validate requests). All responses use the envelope `{ success, data, error, meta: { requestId } }`. User endpoints require a session and organization membership (optionally `x-organization-id`).
 
 | Method | Endpoint | Permission |
 |---|---|---|
@@ -172,6 +172,12 @@ npm run test:integration
 npx playwright install chromium && npm run test:e2e
 ```
 
+```bash
+npm run test:coverage
+```
+
+Current coverage of server code (`src/lib`, `src/services`, `src/app/api`): **76.9% lines, 69.3% branches** across 116 unit + integration tests, plus 6 Playwright journeys. CI posts the coverage table on every run.
+
 Integration tests run against an in-memory Postgres (PGlite) with the real migrations, including RLS policies exercised under the `authenticated` role. Acceptance criteria from the design doc and where they're proven:
 
 | Acceptance test | Covered by |
@@ -216,7 +222,7 @@ Integration tests run against an in-memory Postgres (PGlite) with the real migra
 2. In Loopmend → **Settings → n8n integrations**, connect n8n and copy the integration id + signing secret (shown once).
 3. `cd infrastructure/docker && cp .env.example .env`, fill it in, then `docker compose up -d`. Caddy provisions HTTPS; only `/webhook/*` is public and the editor is restricted to `EDITOR_ALLOWED_IPS`.
 4. Import the workflows in [`n8n/workflows`](n8n/workflows) (see its README), create an n8n API key for the recovery executor, set **incident-ingestion** as the *Error Workflow* of each monitored workflow, and activate the scheduler.
-5. Back up nightly with `infrastructure/scripts/backup.sh` (copy off-VM via `RCLONE_REMOTE`), and test `restore.sh` periodically.
+5. Back up nightly with `infrastructure/scripts/backup.sh` (copy off-VM via `RCLONE_REMOTE`), and test `restore.sh` periodically. Validated on 2026-11-22 against n8n 2.47.7: all 5 workflows imported, then backup → checksum verify → simulated data loss → restore → workflows and data volume recovered intact, n8n healthy.
 
 > n8n Community Edition is under the Sustainable Use License. Keep n8n administration under the operator's control and review licensing before offering hosted n8n to customers.
 

@@ -21,5 +21,11 @@ export default defineConfig({
     pool: "forks",
     // Each integration file boots its own in-memory Postgres; cap parallelism to keep CI runners stable.
     maxWorkers: 3,
+    coverage: {
+      provider: "v8",
+      include: ["src/lib/**", "src/services/**", "src/app/api/**"],
+      exclude: ["src/lib/supabase/**", "src/lib/db/seed*.ts", "src/lib/db/demo-data.ts"],
+      reporter: ["text-summary", "json-summary", "html"],
+    },
   },
 });
