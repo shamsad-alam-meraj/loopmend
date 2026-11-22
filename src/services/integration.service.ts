@@ -18,8 +18,16 @@ export function sealSecrets(orgId: string, secrets: IntegrationSecrets) {
   return encryptJson(secrets, aad(orgId));
 }
 
+export const UNREADABLE_SECRET_MESSAGE =
+  "This integration's secret can't be decrypted (ENCRYPTION_KEY differs from the key it was saved with). Rotate the secret in Settings → n8n integrations, or restore the original ENCRYPTION_KEY.";
+
 export function openSecrets(orgId: string, sealed: string): IntegrationSecrets {
-  return decryptJson<IntegrationSecrets>(sealed, aad(orgId));
+  try {
+    return decryptJson<IntegrationSecrets>(sealed, aad(orgId));
+  } catch {
+    // AES-GCM authentication failure: wrong key (or tampered ciphertext). Never a 500.
+    throw new AppError("SERVICE_UNAVAILABLE", UNREADABLE_SECRET_MESSAGE);
+  }
 }
 
 export async function listIntegrations(ctx: ServiceContext) {
@@ -97,11 +105,17 @@ export async function rotateWebhookSecret(ctx: ServiceContext, integrationId: st
       .from(integrations)
       .where(and(eq(integrations.id, integrationId), eq(integrations.organizationId, ctx.organizationId)));
     if (!row) throw new AppError("NOT_FOUND", "Integration not found");
-    const current = openSecrets(ctx.organizationId, row.encryptedConfig);
+    // If the old secret is unreadable (key changed), rotation still works: start fresh.
+    let current: IntegrationSecrets | { apiKey?: undefined } = {};
+    try {
+      current = openSecrets(ctx.organizationId, row.encryptedConfig);
+    } catch {
+      current = {};
+    }
     const webhookSecret = randomBytes(32).toString("hex");
     await tx
       .update(integrations)
-      .set({ encryptedConfig: sealSecrets(ctx.organizationId, { ...current, webhookSecret }), updatedAt: new Date() })
+      .set({ encryptedConfig: sealSecrets(ctx.organizationId, { ...current, webhookSecret }), status: "pending", updatedAt: new Date() })
       .where(eq(integrations.id, row.id));
     await recordAudit(tx, ctx, { action: "integration.secret_rotated", targetType: "integration", targetId: row.id });
     return { webhookSecret };

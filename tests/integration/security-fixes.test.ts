@@ -57,3 +57,17 @@ describe("security regressions", () => {
     expect(v).toBe(0);
   });
 });
+
+describe("integration secrets encrypted with a different key", () => {
+  it("fail with an actionable 503 (not a 500) and can be recovered by rotation", async () => {
+    const { createIntegration, loadIntegrationForWebhook, rotateWebhookSecret } = await import("@/services/integration.service");
+    const admin = { organizationId: ids.acme, actor: { type: "user" as const, id: ids.userIds.get("admin@demo.loopmend.dev")! }, role: "admin" as const };
+    vi.stubEnv("ENCRYPTION_KEY", Buffer.alloc(32, 1).toString("base64"));
+    const { integration } = await createIntegration(admin, { name: "key-change" });
+    vi.stubEnv("ENCRYPTION_KEY", Buffer.alloc(32, 2).toString("base64"));
+    await expect(loadIntegrationForWebhook(integration.id)).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE", status: 503 });
+    const { webhookSecret } = await rotateWebhookSecret(admin, integration.id);
+    const loaded = await loadIntegrationForWebhook(integration.id);
+    expect(loaded?.secrets.webhookSecret).toBe(webhookSecret);
+  });
+});
