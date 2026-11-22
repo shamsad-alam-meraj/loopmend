@@ -55,3 +55,6 @@ next-env.d.ts
 .vscode/
 .idea/
 /.claude/
+
+# generated deployment secrets (never commit)
+/deploy-secrets.local.md
