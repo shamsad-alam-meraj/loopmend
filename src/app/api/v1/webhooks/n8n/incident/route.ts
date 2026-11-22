@@ -8,6 +8,10 @@ import { systemContext } from "@/services/context";
 import { ingestEvent } from "@/services/ingestion.service";
 import { markIntegrationSeen } from "@/services/integration.service";
 import { getDb } from "@/lib/db/client";
+import { clientKey } from "@/lib/http/api";
+
+/** Sustained events/second per integration (burst = 4×). Tune with WEBHOOK_RATE_LIMIT_PER_SEC. */
+const PER_SEC = Math.max(1, Number(process.env.WEBHOOK_RATE_LIMIT_PER_SEC ?? 50) || 50);
 
 export const dynamic = "force-dynamic";
 
@@ -38,5 +42,10 @@ export const POST = route(
       { status: result.duplicate ? 200 : 202 },
     );
   },
-  { name: "webhook:n8n", rateLimit: { capacity: 120, refillPerSecond: 20 } },
+  {
+    name: "webhook:n8n",
+    rateLimit: { capacity: PER_SEC * 4, refillPerSecond: PER_SEC },
+    // One n8n instance sends from one IP; budget per integration so tenants don't share a bucket.
+    rateLimitKey: (req) => req.headers.get(HEADER.integration)?.slice(0, 64) || clientKey(req),
+  },
 );
