@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
  * message itself (it can contain hostnames or user names).
  */
 function classifyDbError(e: unknown): string {
-  const err = e as { code?: string; message?: string };
+  // Node wraps multi-address connection failures in AggregateError; errors may also carry a cause.
+  const outer = e as { code?: string; message?: string; name?: string; errors?: unknown[]; cause?: unknown };
+  const inner = (outer?.errors?.[0] ?? outer?.cause) as typeof outer | undefined;
+  const err = !outer?.code && inner ? inner : outer;
   const code = err?.code ?? "";
   const msg = (err?.message ?? "").toLowerCase();
   if (code === "28P01" || msg.includes("password authentication failed")) return "auth_failed: wrong password";
@@ -23,7 +26,7 @@ function classifyDbError(e: unknown): string {
   if (msg.includes("database_url is required")) return "not_configured: DATABASE_URL missing";
   if (msg.includes("invalid url") || code === "ERR_INVALID_URL") return "invalid_url: check the format / percent-encode the password";
   if (code === "42P01") return "schema_missing: run migrations";
-  return code ? `error_code:${code}` : "unknown";
+  return code ? `error_code:${code}` : `unknown:${outer?.name ?? typeof e}`;
 }
 
 /**
