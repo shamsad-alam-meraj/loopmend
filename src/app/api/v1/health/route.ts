@@ -6,25 +6,48 @@ import { AppError } from "@/lib/utils/errors";
 export const dynamic = "force-dynamic";
 
 /**
+ * Maps a connection error to a safe, actionable category. Never includes the
+ * message itself (it can contain hostnames or user names).
+ */
+function classifyDbError(e: unknown): string {
+  const err = e as { code?: string; message?: string };
+  const code = err?.code ?? "";
+  const msg = (err?.message ?? "").toLowerCase();
+  if (code === "28P01" || msg.includes("password authentication failed")) return "auth_failed: wrong password";
+  if (msg.includes("tenant or user not found") || msg.includes("no tenant identifier")) return "user_not_found: use postgres.<project-ref> with the pooler";
+  if (code === "ENOTFOUND" || code === "EAI_AGAIN") return "host_not_found: check the host name";
+  if (code === "ENETUNREACH" || code === "EHOSTUNREACH") return "network_unreachable: use the pooler host (direct host is IPv6-only)";
+  if (code === "ECONNREFUSED") return "connection_refused: check host/port";
+  if (code === "3D000") return "database_not_found";
+  if (code === "CONNECT_TIMEOUT" || msg.includes("timeout")) return "timeout";
+  if (msg.includes("database_url is required")) return "not_configured: DATABASE_URL missing";
+  if (msg.includes("invalid url") || code === "ERR_INVALID_URL") return "invalid_url: check the format / percent-encode the password";
+  if (code === "42P01") return "schema_missing: run migrations";
+  return code ? `error_code:${code}` : "unknown";
+}
+
+/**
  * GET /api/v1/health — liveness + database readiness. Returns 503 (never a
  * false success) when the database is unreachable. No secrets are exposed.
  */
 export const GET = route(async (_req, { requestId }) => {
   const started = Date.now();
   let dbOk = false;
+  let reason: string | undefined;
   try {
     const db = await Promise.race([getDb(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000))]);
     await db.execute(sql`select 1`);
     dbOk = true;
-  } catch {
+  } catch (e) {
     dbOk = false;
+    reason = classifyDbError(e);
   }
   const body = {
     status: dbOk ? "ok" : "degraded",
     version: process.env.npm_package_version ?? "0.1.0",
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
-    checks: { database: { ok: dbOk, kind: databaseKind(), latencyMs: Date.now() - started } },
+    checks: { database: { ok: dbOk, kind: databaseKind(), latencyMs: Date.now() - started, ...(reason ? { reason } : {}) } },
     time: new Date().toISOString(),
   };
   if (!dbOk) return fail(new AppError("SERVICE_UNAVAILABLE", "Database unavailable", body), requestId);
