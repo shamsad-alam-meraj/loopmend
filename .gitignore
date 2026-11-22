@@ -58,3 +58,4 @@ next-env.d.ts
 
 # generated deployment secrets (never commit)
 /deploy-secrets.local.md
+/vercel.env.local
