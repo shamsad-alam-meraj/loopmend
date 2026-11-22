@@ -23,7 +23,8 @@
     "bench": "tsx infrastructure/scripts/benchmark.ts",
     "test:coverage": "vitest run --coverage",
     "db:migrate:remote": "tsx --env-file=.env.supabase.local --conditions=react-server infrastructure/scripts/db-migrate.ts",
-    "db:seed:remote": "tsx --env-file=.env.supabase.local --conditions=react-server infrastructure/scripts/db-seed.ts"
+    "db:seed:remote": "tsx --env-file=.env.supabase.local --conditions=react-server infrastructure/scripts/db-seed.ts",
+    "check:api": "tsx infrastructure/scripts/api-check.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
