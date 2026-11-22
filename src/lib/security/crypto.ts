@@ -13,6 +13,21 @@ function encryptionKey(): Buffer {
   return createHash("sha256").update("loopmend-dev-encryption-key").digest();
 }
 
+/**
+ * Safe description of the configured key for diagnostics: a short SHA-256
+ * fingerprint identifies which key is in use without revealing it.
+ */
+export function encryptionKeyStatus(): { ok: true; fingerprint: string; source: "env" | "dev-default" } | { ok: false; reason: "missing" | "invalid" } {
+  const raw = process.env.ENCRYPTION_KEY?.trim();
+  if (!raw) {
+    if (process.env.NODE_ENV === "production") return { ok: false, reason: "missing" };
+    return { ok: true, fingerprint: createHash("sha256").update(encryptionKey()).digest("hex").slice(0, 8), source: "dev-default" };
+  }
+  const key = Buffer.from(raw, "base64");
+  if (key.length !== 32) return { ok: false, reason: "invalid" };
+  return { ok: true, fingerprint: createHash("sha256").update(key).digest("hex").slice(0, 8), source: "env" };
+}
+
 /** AES-256-GCM authenticated encryption. Format: v1:<iv>:<tag>:<ciphertext> (base64url). */
 export function encryptSecret(plaintext: string, aad = "loopmend"): string {
   const iv = randomBytes(12);

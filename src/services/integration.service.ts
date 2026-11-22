@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { integrations } from "@schema";
 import { getDb, type Executor } from "@/lib/db/client";
-import { decryptJson, encryptJson, secretHint } from "@/lib/security/crypto";
+import { decryptJson, encryptJson, encryptionKeyStatus, secretHint } from "@/lib/security/crypto";
 import { AppError } from "@/lib/utils/errors";
 import { assertSafeOutboundUrl, privateUrlsAllowed } from "@/lib/security/outbound-url";
 import { authorize, type ServiceContext } from "./context";
@@ -25,8 +25,12 @@ export function openSecrets(orgId: string, sealed: string): IntegrationSecrets {
   try {
     return decryptJson<IntegrationSecrets>(sealed, aad(orgId));
   } catch {
+    const status = encryptionKeyStatus();
+    if (!status.ok) {
+      throw new AppError("SERVICE_UNAVAILABLE", `ENCRYPTION_KEY is ${status.reason} in this deployment (it must be a base64-encoded 32-byte key, set for this environment).`);
+    }
     // AES-GCM authentication failure: wrong key (or tampered ciphertext). Never a 500.
-    throw new AppError("SERVICE_UNAVAILABLE", UNREADABLE_SECRET_MESSAGE);
+    throw new AppError("SERVICE_UNAVAILABLE", `${UNREADABLE_SECRET_MESSAGE} Active key fingerprint: ${status.fingerprint}.`);
   }
 }
 
