@@ -147,7 +147,7 @@ See [`.env.example`](.env.example). Everything is optional locally.
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Postgres/Supabase. Empty → embedded PGlite. Supabase transaction pooler (`:6543`) is supported (prepared statements disabled automatically). |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Enables Supabase Auth + Realtime. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY`) | Enables Supabase Auth + Realtime. `NEXT_PUBLIC_*` values are inlined at build time, so redeploy after changing them. |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Enables Gemini (default `gemini-2.5-flash`). |
 | `N8N_WEBHOOK_URL` | Recovery-executor webhook (e.g. `https://n8n.example.com/webhook/loopmend-recovery`). Empty → simulated executor in demo mode. |
 | `ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`). Required in production. |
@@ -195,7 +195,10 @@ Integration tests run against an in-memory Postgres (PGlite) with the real migra
 
 **One-time setup**
 
-1. **Supabase**: create a project. In *Auth → URL configuration*, add `https://<your-domain>/auth/callback`. Copy the URL and anon key. For migrations, use the **session pooler / direct** connection string (port 5432) as `DATABASE_URL`; the app runtime can use the transaction pooler (6543).
+1. **Supabase**: create a project. In *Auth → URL configuration*, add `https://<your-domain>/auth/callback`. Copy the project URL and **publishable** key. Connection strings:
+   - Vercel runtime `DATABASE_URL`: **transaction pooler** `postgresql://postgres.<ref>:<password>@aws-<n>-<region>.pooler.supabase.com:6543/postgres`.
+   - GitHub `production` environment `DATABASE_URL` (migrations): **session pooler**, the same host on port **5432**. The direct host `db.<ref>.supabase.co` is IPv6-only and unreachable from GitHub-hosted runners.
+   - Percent-encode special characters in the password.
 2. **Vercel**: import the repo, then set environment variables per environment (all from the table above). Generate secrets with `openssl rand -hex 32` and `openssl rand -base64 32`.
 3. **GitHub**: add repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and an environment **production** (with required reviewers if you want a manual gate) containing `DATABASE_URL`.
 4. Add the repository **variable** `DEPLOY_ENABLED=true` (Settings → Secrets and variables → Actions → Variables). Until then, pushes run CI only.
