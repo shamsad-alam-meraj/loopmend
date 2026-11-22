@@ -24,7 +24,9 @@ const serverEnvSchema = z.object({
   N8N_WEBHOOK_SECRET: optional,
   ENCRYPTION_KEY: optional,
   SESSION_SECRET: optional,
+  SESSION_SECRET_1: optional,
   CRON_SECRET: optional,
+  CRON_SECRET_1: optional,
   SENTRY_DSN: optional,
   ENABLE_DEMO_MODE: optional,
 });
@@ -43,11 +45,15 @@ export function env(): ServerEnv {
 
 const DEV_FALLBACK_SECRET = "dev-only-insecure-secret-do-not-use-in-production-000";
 
+/** Alternate names accepted for hosts where the canonical name is reserved or conflicts (e.g. on Vercel). */
+const ALIASES = { SESSION_SECRET: "SESSION_SECRET_1", CRON_SECRET: "CRON_SECRET_1" } as const;
+
 function requireSecret(name: "N8N_WEBHOOK_SECRET" | "SESSION_SECRET" | "CRON_SECRET"): string {
-  const value = env()[name];
+  const alias = name in ALIASES ? ALIASES[name as keyof typeof ALIASES] : undefined;
+  const value = env()[name] ?? (alias ? env()[alias] : undefined);
   if (value && value.length >= 32) return value;
   if (env().NODE_ENV === "production") {
-    throw new Error(`${name} must be set to at least 32 characters in production`);
+    throw new Error(`${name}${alias ? ` (or ${alias})` : ""} must be set to at least 32 characters in production`);
   }
   return value ?? DEV_FALLBACK_SECRET;
 }
