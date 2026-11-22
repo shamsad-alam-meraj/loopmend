@@ -1,0 +1,40 @@
+{
+  "measuredAt": "2026-11-22T10:01:30.262Z",
+  "target": "http://127.0.0.1:3400",
+  "database": "postgres",
+  "machine": {
+    "cpus": 8,
+    "cpuModel": "Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz",
+    "memoryGb": 8,
+    "node": "v24.22.3"
+  },
+  "ingestion": {
+    "events": 1500,
+    "concurrency": 25,
+    "succeeded": 1500,
+    "errors": 0,
+    "errorStatuses": {},
+    "throughputPerSec": 48,
+    "latencyMs": {
+      "p50": 495,
+      "p95": 681.2,
+      "p99": 800.1,
+      "max": 1667.4
+    },
+    "ingestionDelayMs": {
+      "p50": 495,
+      "p95": 682
+    },
+    "outcomes": {
+      "incident_recurred": 1450,
+      "incident_created": 50
+    }
+  },
+  "duplicateStorm": {
+    "deliveries": 50,
+    "incidentsCreated": 1,
+    "distinctIncidentIds": 1,
+    "duplicatesReturned": 49,
+    "errors": 0
+  }
+}

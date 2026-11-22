@@ -19,7 +19,8 @@
     "db:studio": "drizzle-kit studio",
     "db:reset:local": "rm -rf .data/pglite",
     "vercel-build": "tsx infrastructure/scripts/vercel-build.ts",
-    "smoke": "bash infrastructure/scripts/smoke-test.sh"
+    "smoke": "bash infrastructure/scripts/smoke-test.sh",
+    "bench": "tsx infrastructure/scripts/benchmark.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",

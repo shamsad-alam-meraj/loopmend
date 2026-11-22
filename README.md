@@ -237,4 +237,4 @@ tests/                  unit/ · integration/ · e2e/
 
 - Rate limiting and the SSE change feed are per-instance; on multi-instance deployments, rely on Supabase Realtime and move rate limits to a shared store when traffic justifies it.
 - Free tiers have no uptime guarantees (Supabase projects pause after inactivity; Oracle capacity varies by region).
-- Publish only measured numbers: run repeatable load tests (ingestion throughput, p95 latency, ingestion delay, recovery success rate) before quoting performance.
+- Measured ingestion performance is in [`benchmarks/`](benchmarks): about 48 events/s with p95 681 ms at concurrency 25 on one laptop process, and zero duplicate incidents under a 50× concurrent duplicate storm. Recovery success against live n8n and multi-instance throughput are not measured yet.

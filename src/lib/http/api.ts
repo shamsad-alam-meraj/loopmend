@@ -79,13 +79,19 @@ type Handler<C> = (req: NextRequest, ctx: C & { requestId: string }) => Promise<
  */
 export function route<C = unknown>(
   handler: Handler<C>,
-  opts: { rateLimit?: { capacity: number; refillPerSecond: number }; name?: string } = {},
+  opts: {
+    rateLimit?: { capacity: number; refillPerSecond: number };
+    name?: string;
+    /** Rate-limit bucket key; defaults to the client IP. */
+    rateLimitKey?: (req: NextRequest) => string;
+  } = {},
 ) {
   return async (req: NextRequest, ctx: C): Promise<Response> => {
     const requestId = req.headers.get("x-request-id")?.slice(0, 64) || prefixedId("req");
     try {
       if (opts.rateLimit) {
-        const rl = rateLimit(`${opts.name ?? req.nextUrl.pathname}:${clientKey(req)}`, opts.rateLimit);
+        const key = opts.rateLimitKey?.(req) ?? clientKey(req);
+        const rl = rateLimit(`${opts.name ?? req.nextUrl.pathname}:${key}`, opts.rateLimit);
         if (!rl.allowed) {
           return fail(new AppError("RATE_LIMITED", "Too many requests"), requestId, {
             "retry-after": String(Math.ceil(rl.retryAfterMs / 1000)),
