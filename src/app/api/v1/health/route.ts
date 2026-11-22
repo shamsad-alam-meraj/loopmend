@@ -5,6 +5,24 @@ import { AppError } from "@/lib/utils/errors";
 
 export const dynamic = "force-dynamic";
 
+/** Describes the configured database host without revealing it (helps diagnose misconfiguration). */
+function describeHost(raw: string | undefined): string {
+  if (!raw) return "unset";
+  const value = raw.trim();
+  if (value !== raw) return "has_surrounding_whitespace";
+  if (/^["']/.test(value)) return "wrapped_in_quotes";
+  if (/^[A-Z_]+=/.test(value)) return "includes_variable_name";
+  try {
+    const u = new URL(value);
+    if (/^db\.[a-z0-9]+\.supabase\.co$/.test(u.hostname)) return `supabase_direct_ipv6_only:${u.port || "5432"}`;
+    if (/\.pooler\.supabase\.com$/.test(u.hostname)) return `supabase_pooler:${u.port || "5432"}`;
+    if (u.hostname.includes("<") || u.hostname.includes("[")) return "placeholder_in_host";
+    return "other";
+  } catch {
+    return "unparseable";
+  }
+}
+
 /**
  * Maps a connection error to a safe, actionable category. Never includes the
  * message itself (it can contain hostnames or user names).
@@ -50,7 +68,7 @@ export const GET = route(async (_req, { requestId }) => {
     version: process.env.npm_package_version ?? "0.1.0",
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
-    checks: { database: { ok: dbOk, kind: databaseKind(), latencyMs: Date.now() - started, ...(reason ? { reason } : {}) } },
+    checks: { database: { ok: dbOk, kind: databaseKind(), latencyMs: Date.now() - started, ...(reason ? { reason, host: describeHost(process.env.DATABASE_URL) } : {}) } },
     time: new Date().toISOString(),
   };
   if (!dbOk) return fail(new AppError("SERVICE_UNAVAILABLE", "Database unavailable", body), requestId);
